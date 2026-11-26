@@ -1,0 +1,1921 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FuelLedger Manager Walkthrough</title>
+    <style>
+      :root {
+        --bg: #f7f9f8;
+        --card: #fff;
+        --ink: #1c2523;
+        --muted: #68756f;
+        --line: #e2e8e5;
+        --primary: #006b52;
+        --on-primary: #fff;
+        --soft: #e3f3ec;
+        --amber: #8a5a00;
+        --amber-soft: #fff1d6;
+        --blue: #1d5f8a;
+        --blue-soft: #e3f1fb;
+        --red: #a5282c;
+        --shadow: 0 10px 30px rgba(15, 40, 32, 0.1);
+      }
+      :root[data-theme="dark"] {
+        --bg: #111614;
+        --card: #1b221f;
+        --ink: #eef4f1;
+        --muted: #a7b3ae;
+        --line: #323c38;
+        --primary: #4cc9a0;
+        --on-primary: #06211a;
+        --soft: #1d3a30;
+        --amber: #ffc86b;
+        --amber-soft: #3d2e10;
+        --blue: #8fccf2;
+        --blue-soft: #173243;
+        --red: #ff9a9d;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 "DM Sans",
+          system-ui,
+          "Segoe UI",
+          sans-serif;
+        padding: 16px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: Manrope, system-ui, "Segoe UI", sans-serif;
+        line-height: 1.25;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 3px solid var(--primary);
+        outline-offset: 2px;
+      }
+      .page {
+        max-width: 1360px;
+        margin: 0 auto;
+      }
+      header.top {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      header.top h1 {
+        font-size: 20px;
+      }
+      header.top p {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      nav.chapters {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 8px;
+      }
+      nav.chapters button {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        text-align: left;
+        border: 0;
+        background: none;
+        padding: 8px 10px;
+        border-radius: 9px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      nav.chapters button i {
+        font-style: normal;
+        flex: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+      }
+      nav.chapters button.on {
+        background: var(--soft);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      nav.chapters button.on i,
+      nav.chapters button.seen i {
+        background: var(--primary);
+        color: var(--on-primary);
+        border-color: var(--primary);
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 9px;
+        padding: 7px 14px;
+      }
+      .btn.primary {
+        background: var(--primary);
+        color: var(--on-primary);
+        border-color: var(--primary);
+        font-weight: 600;
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .caption {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+        min-height: 106px;
+      }
+      .caption small {
+        color: var(--primary);
+        font-weight: 700;
+      }
+      .caption h2 {
+        font-size: 18px;
+        margin: 2px 0;
+      }
+      .caption p {
+        color: var(--muted);
+      }
+      /* keep the controls on screen: never taller than the window allows */
+      .viewport {
+        position: relative;
+        margin-inline: auto;
+        width: min(100%, max(640px, calc((100vh - 270px) * 1.617)));
+        max-width: 100%;
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+      .screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: top left;
+        transition: transform 0.35s;
+        width: 1100px;
+        height: 680px;
+        font-size: 14px;
+        background: var(--bg);
+        overflow: hidden;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 12px;
+      }
+      .controls .grow {
+        flex: 1;
+      }
+      .controls label {
+        color: var(--muted);
+        font-size: 13px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .bar {
+        height: 4px;
+        background: var(--line);
+        border-radius: 4px;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+      .bar div {
+        height: 100%;
+        background: var(--primary);
+        transition: width 0.4s;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 10px;
+      }
+
+      /* mock workspace */
+      .app {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        height: 100%;
+      }
+      .side {
+        background: var(--card);
+        border-right: 1px solid var(--line);
+        padding: 14px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .logo {
+        font-weight: 800;
+        font-size: 19px;
+        padding: 0 8px 10px;
+        color: var(--ink);
+      }
+      .logo b {
+        color: var(--primary);
+      }
+      .switch {
+        border-block: 1px solid var(--line);
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      .switch strong {
+        display: block;
+      }
+      .sel {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-top: 3px;
+        background: var(--card);
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 28px;
+        align-items: center;
+      }
+      .sel::after {
+        content: "▾";
+        color: var(--muted);
+      }
+      .label {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        padding: 6px 8px 2px;
+      }
+      .nav {
+        padding: 6px 10px;
+        border-radius: 8px;
+        color: var(--muted);
+      }
+      .nav.on {
+        background: var(--soft);
+        color: var(--primary);
+        font-weight: 700;
+      }
+      .side .grow {
+        flex: 1;
+      }
+      .who {
+        border-top: 1px solid var(--line);
+        padding: 8px 10px;
+        margin-top: 4px;
+        line-height: 1.3;
+      }
+      .who small {
+        display: block;
+        color: var(--muted);
+      }
+      .body {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .bartop {
+        height: 52px;
+        border-bottom: 1px solid var(--line);
+        background: var(--card);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 22px;
+        color: var(--muted);
+      }
+      .bartop strong {
+        color: var(--ink);
+      }
+      .bartop .grow,
+      .row .grow {
+        flex: 1;
+      }
+      .main {
+        padding: 18px 26px;
+        overflow: hidden;
+        position: relative;
+      }
+      .head {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        margin-bottom: 12px;
+      }
+      .head > div:first-child {
+        flex: 1;
+      }
+      .head h3 {
+        font-size: 24px;
+      }
+      .head p {
+        color: var(--muted);
+      }
+      .mb {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 8px;
+        padding: 8px 14px;
+        white-space: nowrap;
+        display: inline-block;
+      }
+      .mb.p {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: var(--on-primary);
+        font-weight: 600;
+      }
+      .pill {
+        display: inline-block;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 12px;
+        background: var(--soft);
+        color: var(--primary);
+        white-space: nowrap;
+      }
+      .pill.a {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+      .status {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        border-block: 1px solid var(--line);
+        padding: 8px 0;
+        margin-bottom: 12px;
+        color: var(--muted);
+      }
+      .status > span:last-child {
+        flex: 1;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 14px;
+      }
+      .card span {
+        color: var(--muted);
+      }
+      .card strong {
+        display: block;
+        font-size: 24px;
+        margin: 4px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        border: 1px solid var(--line);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 11px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 44px 20px;
+      }
+      .empty h4 {
+        color: var(--ink);
+        font-size: 17px;
+      }
+      .scrim {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.38);
+        display: grid;
+        place-items: center;
+        z-index: 2;
+      }
+      .dialog {
+        width: 520px;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 22px;
+        box-shadow: var(--shadow);
+        animation: rise 0.3s ease;
+      }
+      .dialog h4 {
+        font-size: 17px;
+      }
+      .dialog > p {
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 12px;
+      }
+      .f {
+        display: block;
+        margin-top: 8px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .in {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--card);
+        padding: 6px 10px;
+        min-height: 34px;
+        font-weight: 400;
+        font-size: 14px;
+        margin-top: 2px;
+      }
+      .in.sel {
+        margin-top: 2px;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 5px;
+        margin-top: 8px;
+      }
+      dt {
+        color: var(--muted);
+      }
+      .warn {
+        color: var(--amber);
+        margin-top: 10px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 6px;
+      }
+      .tab {
+        padding: 6px 12px;
+        border-radius: 8px;
+        color: var(--muted);
+      }
+      .tab.on {
+        background: var(--soft);
+        color: var(--primary);
+        font-weight: 700;
+      }
+      .reports {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .toast {
+        position: absolute;
+        right: 18px;
+        bottom: 18px;
+        background: var(--ink);
+        color: var(--bg);
+        padding: 10px 16px;
+        border-radius: 10px;
+        z-index: 3;
+        animation: rise 0.3s ease;
+      }
+      .focus {
+        outline: 3px solid var(--primary);
+        outline-offset: 3px;
+        border-radius: 8px;
+      }
+
+      /* sign-in and phone */
+      .signin {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        background: var(--card);
+      }
+      .signin > div {
+        width: 360px;
+      }
+      .signin h3 {
+        font-size: 28px;
+      }
+      .signin .mb {
+        width: 100%;
+        text-align: center;
+        margin-top: 16px;
+      }
+      .link {
+        color: var(--primary);
+        margin-top: 10px;
+        display: inline-block;
+      }
+      .phonewrap {
+        height: 100%;
+        display: flex;
+        gap: 46px;
+        align-items: center;
+        justify-content: center;
+      }
+      .phone {
+        width: 310px;
+        height: 640px;
+        border: 9px solid var(--ink);
+        border-radius: 40px;
+        background: var(--bg);
+        overflow: hidden;
+        position: relative;
+      }
+      .phone .main {
+        padding: 14px;
+      }
+      .phone .cards {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .phone .card strong {
+        font-size: 20px;
+      }
+      .drawer {
+        position: absolute;
+        inset: 0 70px 0 0;
+        background: var(--card);
+        padding: 14px;
+        box-shadow: var(--shadow);
+        z-index: 2;
+        animation: slide 0.3s ease;
+      }
+      .side-note {
+        max-width: 300px;
+        font-size: 17px;
+        color: var(--muted);
+      }
+
+      /* flow diagrams */
+      .flow {
+        height: 100%;
+        padding: 34px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 26px;
+      }
+      .flow h3 {
+        text-align: center;
+        font-size: 22px;
+      }
+      .lane {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .node {
+        width: 180px;
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        padding: 12px;
+        text-align: center;
+        opacity: 0.35;
+        transition: 0.4s;
+      }
+      .node em {
+        font-size: 26px;
+        font-style: normal;
+        display: block;
+      }
+      .node strong {
+        display: block;
+      }
+      .node span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .node.lit {
+        opacity: 1;
+        border-color: var(--primary);
+      }
+      .node.now {
+        transform: translateY(-6px);
+        box-shadow: var(--shadow);
+        background: var(--soft);
+      }
+      .node.soon {
+        border-style: dashed;
+      }
+      .arrow {
+        align-self: center;
+        color: var(--muted);
+        font-size: 20px;
+      }
+
+      .cursor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        z-index: 9;
+        pointer-events: none;
+        transition:
+          transform 0.7s cubic-bezier(0.45, 0.05, 0.25, 1),
+          opacity 0.2s;
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+      }
+      .ripple {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        margin: -22px;
+        border-radius: 50%;
+        border: 3px solid var(--primary);
+        z-index: 8;
+        animation: ripple 0.6s ease-out forwards;
+      }
+      @keyframes ripple {
+        from {
+          transform: scale(0.2);
+          opacity: 1;
+        }
+        to {
+          transform: scale(1.4);
+          opacity: 0;
+        }
+      }
+      @keyframes rise {
+        from {
+          transform: translateY(14px);
+          opacity: 0;
+        }
+      }
+      @keyframes slide {
+        from {
+          transform: translateX(-100%);
+        }
+      }
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        nav.chapters {
+          flex-direction: row;
+          overflow-x: auto;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+  FuelLedger MANAGER walkthrough. Open this file in any browser; it needs no internet or server.
+  Keep it current: see "Workflow walkthroughs" in AGENTS.md.
+  Wording comes from the app source, not from this file. Each chapter in CHAPTERS names its sources.
+  Last checked against the code: 2026-11-26.
+-->
+    <div class="page">
+      <header class="top">
+        <div>
+          <h1>⛽ FuelLedger · Manager walkthrough</h1>
+          <p>Watch each task being done, in the order of a working day. Example data only.</p>
+        </div>
+        <button class="btn" id="theme">Light / Dark</button>
+      </header>
+      <div class="layout">
+        <nav class="chapters" id="nav" aria-label="Chapters"></nav>
+        <section>
+          <div class="caption" aria-live="polite">
+            <small id="count"></small>
+            <h2 id="title"></h2>
+            <p id="tip"></p>
+          </div>
+          <div class="viewport" id="viewport"><div class="screen" id="screen"></div></div>
+          <div class="bar"><div id="progress"></div></div>
+          <div class="controls">
+            <button class="btn" id="back">← Back</button>
+            <button class="btn primary" id="play">▶ Play</button>
+            <button class="btn" id="next">Next →</button>
+            <button class="btn" id="replay">↻ Replay chapter</button>
+            <span class="grow"></span>
+            <label><input type="checkbox" id="auto" checked /> Continue to next chapter</label>
+            <label
+              >Speed
+              <select id="speed">
+                <option value="1.5">Slow</option>
+                <option value="1" selected>Normal</option>
+                <option value="0.6">Fast</option>
+              </select>
+            </label>
+          </div>
+          <p class="note">
+            Keyboard: ← → to step, space to play or pause. The screens are drawings of the real app,
+            so small details can differ.
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+      const ESC = (s) =>
+        String(s ?? "").replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+
+      /* ---------- screen pieces ---------- */
+      // src/components/fuel-ledger/shell.tsx (a Manager has no "Staff & access")
+      const MENU = [
+        "Dashboard",
+        "Fuel transactions",
+        "Collections",
+        "Customer ledger",
+        "Reports",
+        "Receivables ageing",
+        "Customers",
+        "Vehicles",
+      ];
+      const btn = (k, text, primary) =>
+        `<span class="mb${primary ? " p" : ""}" data-k="${k}">${text}</span>`;
+      const field = (s, k, label, placeholder = "", select = false) =>
+        `<label class="f">${label}<div class="in${select ? " sel" : ""}" data-k="${k}"><span data-v>${ESC(s[k] ?? placeholder)}</span></div></label>`;
+      const head = (title, sub, actions = "") =>
+        `<div class="head"><div><h3>${title}</h3><p>${sub}</p></div>${actions}</div>`;
+      const status = (pill, text, amber, extra = "") =>
+        `<div class="status"><span class="pill${amber ? " a" : ""}">${pill}</span><span>${text}</span>${extra}</div>`;
+      const notPosted = (extra) =>
+        status(
+          "Not posted",
+          "Saved entries can't be changed. Nothing is posted to accounts.",
+          true,
+          extra,
+        );
+      const card = (k, t, v, d) =>
+        `<div class="card" data-k="${k}"><span>${t}</span><strong>${v}</strong><span>${d}</span></div>`;
+      const table = (cols, rows, k = "table") =>
+        `<table data-k="${k}"><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
+      const savedPill = '<span class="pill">Saved</span>';
+
+      function shell(s, content) {
+        const queue = s.queued
+          ? `<span class="mb" data-k="queued">1 entry queued</span><span class="mb p" data-k="sync">Sync Now</span>`
+          : s.offline
+            ? `<span class="mb" data-k="offline">☁ Offline</span>`
+            : "";
+        return `<div class="app">
+    <aside class="side">
+      <div class="logo">⛽ Demo Fuels<b>.</b></div>
+      <div class="switch"><strong>Demo Fuels</strong><div class="sel" data-k="site">${s.site ?? "All assigned sites"}</div></div>
+      <div class="label">WORKSPACE</div>
+      ${MENU.map((m) => `<div class="nav${s.page === m ? " on" : ""}" data-k="nav:${m}">${m}</div>`).join("")}
+      <div class="grow"></div>
+      <div class="label">MANAGEMENT</div>
+      <div class="nav${s.page === "Settings" ? " on" : ""}" data-k="nav:Settings">Settings</div>
+      <div class="nav">Help &amp; support</div>
+      <div class="who"><strong>Manager 1</strong><small>Manager</small><div data-k="signout">⇥ Sign out</div></div>
+    </aside>
+    <div class="body">
+      <div class="bartop"><span>Workspace ›</span><strong>${s.page}</strong><span class="grow"></span>${queue}<span data-k="search">🔍 Search pages…</span><span class="pill">Staff workspace</span></div>
+      <div class="main">${content}</div>
+    </div>
+  </div>${s.dialog ? `<div class="scrim">${s.dialog(s)}</div>` : ""}${s.toast ? `<div class="toast">${s.toast}</div>` : ""}`;
+      }
+
+      // src/components/fuel-ledger/dashboard.tsx
+      function dashboard(s) {
+        const one = s.site === "Site 01";
+        return shell(
+          s,
+          head(
+            "Dashboard",
+            "Fuel entries and collections.",
+            btn("newcol", "New collection") + btn("newfuel", "+ New fuel entry", true),
+          ) +
+            notPosted(`<span class="sel" data-k="period">${s.period ?? "All dates"}</span>`) +
+            `<div class="cards">${card("m1", "Saved fuel amounts", one ? "₹76,117.00" : "₹1,59,444.00", one ? "9 entries · 818.00 litres" : "18 entries · 1704.00 litres")}${card("m2", "Saved collections", one ? "₹30,611.22" : "₹61,380.82", one ? "2 collections · Unverified" : "4 collections · Unverified")}${card("m3", "Ledger outstanding", "—", "Awaiting accounting rules")}</div>
+    <div class="cards" style="grid-template-columns:2fr 1fr">
+      <div class="card" data-k="chart"><span>Daily activity · Last 7 active dates</span><svg viewBox="0 0 400 130" width="100%" height="150" aria-hidden="true">${[80, 105, 78, 100, 30, 45, 70].map((h, i) => `<rect x="${20 + i * 55}" y="${125 - h}" width="22" height="${h}" rx="3" fill="var(--primary)"/>`).join("")}</svg></div>
+      <div class="card" data-k="modes"><span>Collection breakdown</span><br>Cash<br>UPI<br>Bank transfer<br>Cheque</div>
+    </div>`,
+        );
+      }
+
+      // src/components/fuel-ledger/directory-page.tsx
+      function customers(s) {
+        const rows = [
+          ["<b>Sample Roadways</b><br><small>9000000000</small>", "—", savedPill, "↗ ✎ 🗑"],
+        ];
+        if (s.addedCustomer)
+          rows.unshift([
+            "<b>Example Transport</b><br><small>9000000001</small>",
+            "Contact A",
+            savedPill,
+            '<span data-k="toledger">↗</span> ✎ 🗑',
+          ]);
+        return shell(
+          s,
+          head(
+            "Customers",
+            "Saved customer accounts, contact details, and site assignments.",
+            btn("newcust", "+ New customer", true),
+          ) +
+            status(
+              "Saved directory",
+              "Changes are stored securely and limited to the sites your account can manage.",
+            ) +
+            table(["Customer", "Contact", "Status", ""], rows),
+        );
+      }
+      function vehicles(s) {
+        const rows = [["<b>KA05CD5678</b>", "Sample Roadways", savedPill, "✎ 🗑"]];
+        if (s.addedVehicle)
+          rows.unshift(["<b>KA01AB1234</b>", "Example Transport", savedPill, "✎ 🗑"]);
+        return shell(
+          s,
+          head(
+            "Vehicles",
+            "Saved vehicle registrations linked to customer accounts.",
+            btn("newveh", "+ New vehicle", true),
+          ) +
+            status(
+              "Saved directory",
+              "Changes are stored securely and limited to the sites your account can manage.",
+            ) +
+            table(["Registration", "Customer", "Status", ""], rows),
+        );
+      }
+      // src/components/fuel-ledger/directory-dialog.tsx
+      const customerDialog = (
+        s,
+      ) => `<div class="dialog"><h4>New customer</h4><p>Saved to the selected site’s customer directory.</p>
+  ${field(s, "csite", "Site", "Site 01", true)}${field(s, "cname", "Customer / business name")}
+  <div class="grid2">${field(s, "cperson", "Contact person")}${field(s, "cphone", "Phone")}</div>
+  ${field(s, "caddr", "Address")}${field(s, "cnotes", "Notes")}
+  <div class="actions">${btn("cancel", "Cancel")}${btn("addcust", "Add customer", true)}</div></div>`;
+      const vehicleDialog = (
+        s,
+      ) => `<div class="dialog"><h4>New vehicle</h4><p>Link one registration to a saved customer and site.</p>
+  ${field(s, "vcust", "Customer", "Choose a customer", true)}${field(s, "vreg", "Vehicle registration", "KA01AB1234")}${field(s, "vnotes", "Notes")}
+  <div class="actions">${btn("cancel", "Cancel")}${btn("addveh", "Add vehicle", true)}</div></div>`;
+
+      // src/components/fuel-ledger/entry-dialog.tsx
+      const fuelForm = (
+        s,
+      ) => `<div class="dialog"><h4>New fuel entry</h4><p>Saved as a record · Not posted to accounts</p>
+  <div class="grid2">${field(s, "date", "Date", "26-11-2026")}${field(s, "ref", "Slip / reference")}</div>
+  ${field(s, "cust", "Customer / account name", "Choose a saved customer", true)}
+  <div class="grid2">${field(s, "veh", "Vehicle registration", "Choose a customer first", true)}${field(s, "fuel", "Fuel type", "Diesel", true)}${field(s, "qty", "Quantity (litres)")}${field(s, "amt", "Slip amount (₹)")}</div>
+  ${field(s, "notes", "Notes")}<div class="actions">${btn("cancel", "Cancel")}${btn("review", "Review entry", true)}</div></div>`;
+      const colForm = (
+        s,
+      ) => `<div class="dialog"><h4>New collection</h4><p>Saved as a record · Not posted to accounts</p>
+  <div class="grid2">${field(s, "date", "Date", "26-11-2026")}${field(s, "ref", "Receipt / reference")}</div>
+  ${field(s, "cust", "Customer / account name", "Choose a saved customer", true)}
+  <div class="grid2">${field(s, "amt", "Collection amount (₹)")}${field(s, "mode", "Payment mode", "Cash", true)}</div>
+  ${field(s, "notes", "Notes")}<div class="actions">${btn("cancel", "Cancel")}${btn("review", "Review entry", true)}</div></div>`;
+      const reviewDialog =
+        (kind) =>
+        (
+          s,
+        ) => `<div class="dialog"><h4>Review ${kind === "fuel" ? "fuel entry" : "collection"}</h4><dl data-k="summary">
+  <dt>Date</dt><dd>2026-11-26</dd><dt>Reference</dt><dd>${kind === "fuel" ? "SLIP-101" : "RCPT-01"}</dd><dt>Customer</dt><dd>Example Transport</dd>
+  ${kind === "fuel" ? "<dt>Vehicle</dt><dd>KA01AB1234</dd><dt>Fuel</dt><dd>Diesel · 60 L</dd><dt>Entered amount</dt><dd>₹5430</dd>" : "<dt>Payment mode</dt><dd>UPI</dd><dt>Entered amount</dt><dd>₹3000</dd>"}<dt>Notes</dt><dd>—</dd></dl>
+  <p class="warn" data-k="warning">A saved entry can't be changed or removed. No ledger posting or payment clearance.</p>
+  ${s.offline ? '<p class="warn" data-k="offmsg">You\'re offline. This entry will be kept on this device and sent when the connection returns.</p>' : ""}
+  <div class="actions">${btn("backbtn", "Back")}${btn("save", "Save entry", true)}</div></div>`;
+
+      // src/components/fuel-ledger/module-page.tsx and tables.tsx
+      function entries(s) {
+        const fuel = s.page === "Fuel transactions";
+        let rows = fuel
+          ? [
+              [
+                "<b>FS-2611-08</b><br><small>2026-11-25</small>",
+                "Sample Roadways",
+                "KA05CD5678<br><small>Diesel</small>",
+                "112 L",
+                "₹10,136.00",
+                savedPill,
+              ],
+            ]
+          : [
+              [
+                "<b>CL-2608-09</b><br><small>2026-08-04</small>",
+                "Sample Roadways",
+                "Bank transfer<br><small>Collection</small>",
+                "—",
+                "₹14,663.18",
+                savedPill,
+              ],
+            ];
+        if (s.added) {
+          const st =
+            s.added === "queued" ? '<span class="pill a">Offline - Queued</span>' : savedPill;
+          rows.unshift(
+            fuel
+              ? [
+                  "<b>SLIP-101</b><br><small>2026-11-26</small>",
+                  "Example Transport",
+                  "KA01AB1234<br><small>Diesel</small>",
+                  "60 L",
+                  "₹5,430.00",
+                  st,
+                ]
+              : [
+                  "<b>RCPT-01</b><br><small>2026-11-26</small>",
+                  "Example Transport",
+                  "UPI<br><small>Collection</small>",
+                  "—",
+                  "₹3,000.00",
+                  st,
+                ],
+          );
+        }
+        if (s.query) rows = rows.filter((r) => r.join(" ").includes(s.query));
+        return shell(
+          s,
+          head(
+            s.page,
+            fuel ? "Fuel entries, slips, and quantities." : "Collections and receipt references.",
+            btn("export", "⭳ Export preview") +
+              btn("new", fuel ? "+ New fuel entry" : "+ New collection", true),
+          ) +
+            notPosted() +
+            `<div class="cards">${card("s1", fuel ? "Saved fuel amounts" : "Saved collections", fuel ? "₹76,117.00" : "₹30,611.22", "")}${card("s2", "Entries in view", String(rows.length), "")}${card("s3", fuel ? "Saved quantity" : "Clearance status", fuel ? "818.00 L" : "Not verified", "")}</div>
+    <div class="row"><div class="in grow" data-k="query"><span data-v>${ESC(s.query ?? "Search references, accounts…")}</span></div><span class="sel" data-k="filter">${fuel ? "Fuel" : "Mode"}: All</span><span class="mb" data-k="from">From</span><span class="mb" data-k="to">To</span></div>` +
+            table(
+              ["Date / reference", "Customer", "Entry", "Quantity", "Entered amount", "Status"],
+              rows,
+            ),
+        );
+      }
+
+      // src/components/fuel-ledger/ledger-view.tsx
+      const ledger = (s) =>
+        shell(
+          s,
+          head("Customer ledger", "Customer fuel and collection activity.") +
+            status(
+              "Not an accounting ledger",
+              "Balances and statements await workbook review.",
+              true,
+            ) +
+            `<div style="max-width:320px;margin-bottom:14px">${field(s, "lcust", "Customer", "Select account", true)}</div>` +
+            (s.lcust
+              ? table(
+                  ["Date / reference", "Customer", "Entry", "Entered amount", "Status"],
+                  [
+                    [
+                      "<b>SLIP-101</b>",
+                      "Example Transport",
+                      "KA01AB1234 · Diesel",
+                      "₹5,430.00",
+                      savedPill,
+                    ],
+                    [
+                      "<b>RCPT-01</b>",
+                      "Example Transport",
+                      "UPI · Collection",
+                      "₹3,000.00",
+                      savedPill,
+                    ],
+                  ],
+                )
+              : '<div class="empty"><h4>No customer activity selected</h4><p>No opening balance or running balance has been calculated.</p></div>'),
+        );
+      const reports = (s) =>
+        shell(
+          s,
+          head("Reports", "Operational activity and accounting reports.") +
+            `<div class="reports">${[
+              ["Fuel activity", "Unposted fuel entry preview"],
+              ["Collections", "Unposted collection preview"],
+              ["Customer activity", "Entered activity, without balances"],
+              ["Receivables ageing", "Awaiting accounting rules"],
+            ]
+              .map(
+                ([n, d]) =>
+                  `<div class="card" data-k="r:${n}"><strong>${n}</strong><span>${d}</span><br><span class="link">Open ↗</span></div>`,
+              )
+              .join("")}</div>`,
+        );
+      const ageing = (s) =>
+        shell(
+          s,
+          head("Receivables ageing", "Outstanding receivables by age.") +
+            '<div class="empty" data-k="locked"><h4>🔒 Ageing is not available yet</h4><p>Due dates, allocation, and ageing rules await workbook review.</p></div>',
+        );
+
+      // src/components/organization/settings-page.tsx (a Manager sees two tabs)
+      const settings = (s) =>
+        shell(
+          s,
+          head("Settings", "") +
+            `<div class="tabs"><span class="tab${s.tab ? "" : " on"}">Sites</span><span class="tab${s.tab ? " on" : ""}" data-k="prefs">My preferences</span></div>` +
+            (s.tab
+              ? `<div style="max-width:360px">${field(s, "ptheme", "Theme", "Organization default", true)}${field(s, "pdensity", "Density", "Comfortable", true)}${field(s, "pside", "Sidebar", "Expanded", true)}<div class="actions" style="justify-content:flex-start">${btn("saveprefs", "Save preferences", true)}</div></div>`
+              : '<div class="card"><strong>Petrol station sites</strong><span>Your assigned sites. Only an Owner can add or edit them.</span></div>'),
+        );
+
+      // src/components/access/auth-page.tsx
+      const signin = (s) => `<div class="signin"><div>
+  <span class="label">STAFF WORKSPACE</span><h3>${s.forgot ? "Reset your password" : "Welcome back"}</h3>
+  <p style="color:var(--muted)">${s.forgot ? "We email you a link to choose a new one." : "Sign in to your FuelLedger staff account."}</p>
+  ${field(s, "email", "Email address", "you@company.com")}${s.forgot ? btn("sendlink", "Send reset link", true) : field(s, "pass", "Password") + btn("signinbtn", "→ Sign in", true) + '<span class="link" data-k="forgot">Forgot password?</span>'}
+  <p class="note">Staff access is invitation-only. A sign-in alone does not grant workspace permissions.</p>
+</div></div>`;
+
+      function phone(s) {
+        return `<div class="phonewrap"><div class="phone">
+    <div class="bartop" style="padding:0 12px"><span class="mb" data-k="menu" style="padding:3px 10px">☰</span><strong>${s.page}</strong></div>
+    <div class="main">${
+      s.page === "Dashboard"
+        ? `<div class="head"><div><h3>Dashboard</h3></div></div>${btn("pnew", "+ New fuel entry", true)}<div class="cards" style="margin-top:12px">${card("p1", "Saved fuel amounts", "₹76,117.00", "9 entries")}${card("p2", "Saved collections", "₹30,611.22", "2 collections · Unverified")}</div>`
+        : `<div class="head"><div><h3>Fuel transactions</h3></div></div>${card("pc", "SLIP-101 · 2026-11-26", "₹5,430.00", "Example Transport · KA01AB1234 · 60 L · Saved")}`
+    }</div>
+    ${s.drawer ? `<div class="drawer"><div class="logo">⛽ Demo Fuels<b>.</b></div>${MENU.map((m) => `<div class="nav" data-k="p:${m}">${m}</div>`).join("")}</div>` : ""}
+  </div><div class="side-note"><b>Managers use the website on the phone.</b><br><br>The separate FuelLedger Owner app is for Owners only.</div></div>`;
+      }
+
+      /* flow diagrams: s.lit = how many nodes are lit */
+      function flow(heading, lanes) {
+        return (s) => {
+          let i = 0;
+          return `<div class="flow"><h3>${heading}</h3>${lanes
+            .map(
+              (lane) =>
+                `<div class="lane">${lane
+                  .map(([icon, title, sub, go, soon], j) => {
+                    i += 1;
+                    return `${j ? '<span class="arrow">→</span>' : ""}<div class="node${i <= s.lit ? " lit" : ""}${i === s.lit ? " now" : ""}${soon ? " soon" : ""}" ${go ? `data-go="${go}" role="button" tabindex="0"` : ""}><em>${icon}</em><strong>${title}</strong><span>${sub}</span></div>`;
+                  })
+                  .join("")}</div>`,
+            )
+            .join("")}</div>`;
+        };
+      }
+      const bigPicture = flow("A Manager's working day", [
+        [
+          ["✉️", "1. Get invited", "Owner adds you and gives you a site", "signin"],
+          ["🔑", "2. Sign in", "Email and password", "signin"],
+          ["🏪", "3. Choose site", "It controls every screen", "dashboard"],
+          ["📊", "4. Dashboard", "Check what is saved", "dashboard"],
+        ],
+        [
+          ["👤", "5. Customer", "Add once, before entries", "customer"],
+          ["🚚", "6. Vehicle", "Belongs to a customer", "vehicle"],
+          ["⛽", "7. Fuel entry", "Form → Review → Save", "fuel"],
+          ["💰", "8. Collection", "Money received", "collection"],
+        ],
+        [
+          ["🔎", "9. Check", "Search, export, ledger", "find"],
+          ["🚪", "10. Sign out", "Always on a shared computer", "finish"],
+        ],
+      ]);
+      const afterSave = flow("What happens after you press Save entry", [
+        [
+          ["⛽", "You save", "Fuel entry or collection"],
+          ["🗄️", "Saved record", "Cannot be changed or removed"],
+          ["📋", "Your screens", "Lists, dashboard, customer ledger"],
+        ],
+        [
+          ["💻", "Owner on website", "Sees it for that site"],
+          ["📱", "Owner mobile app", "Read-only view of the same record"],
+          ["🔔", "Owner notification", "Waiting for a database update", null, true],
+        ],
+      ]);
+
+      /* ---------- chapters ----------
+   Each step: [heading, explanation, options]
+   options: at = element the cursor goes to, click = ripple, type = {key: text}, set = state after the step */
+      const CHAPTERS = [
+        {
+          id: "overview",
+          name: "The big picture",
+          view: bigPicture,
+          start: { lit: 0 },
+          steps: [
+            [
+              "Before you start",
+              "Your Owner invites you by email and gives you a site. Select any box to jump to that chapter.",
+              { set: { lit: 1 } },
+            ],
+            ["Sign in", "Use your email address and password.", { set: { lit: 2 } }],
+            [
+              "Choose your site",
+              "Everything on screen belongs to the site you pick.",
+              { set: { lit: 3 } },
+            ],
+            ["Check the dashboard", "See what has been saved so far.", { set: { lit: 4 } }],
+            [
+              "Customer first",
+              "A customer must exist before a vehicle or an entry.",
+              { set: { lit: 5 } },
+            ],
+            ["Then the vehicle", "Each vehicle is linked to one customer.", { set: { lit: 6 } }],
+            ["Save each fuel slip", "Fill the form, review it, then save.", { set: { lit: 7 } }],
+            ["Save each collection", "The money a customer pays you.", { set: { lit: 8 } }],
+            [
+              "Check your work",
+              "Search the lists, export, or look at one customer.",
+              { set: { lit: 9 } },
+            ],
+            ["Sign out", "Your day is done.", { set: { lit: 10 } }],
+          ],
+        },
+        // auth-page.tsx, password-page.tsx
+        {
+          id: "signin",
+          name: "Sign in",
+          view: signin,
+          start: {},
+          steps: [
+            [
+              "Open the sign-in page",
+              "First time? Open the setup link in your email and set a password of at least 12 characters, with a capital letter, a small letter and a number.",
+              {},
+            ],
+            [
+              "Type your email",
+              "The address your Owner invited.",
+              { at: "email", type: { email: "manager@example.com" } },
+            ],
+            [
+              "Type your password",
+              "Never share it.",
+              { at: "pass", type: { pass: "••••••••••••" } },
+            ],
+            [
+              "Select Sign in",
+              "You land on the Dashboard.",
+              { at: "signinbtn", click: true, view: dashboard, set: { page: "Dashboard" } },
+            ],
+            [
+              "Forgot your password?",
+              "On the sign-in page, select this link.",
+              { view: signin, set: {} },
+            ],
+            [
+              "Ask for a reset link",
+              "Select Send reset link, open the email and choose a new password.",
+              { at: "forgot", click: true, set: { forgot: true } },
+            ],
+          ],
+        },
+        // site-selector.tsx, dashboard.tsx
+        {
+          id: "dashboard",
+          name: "Site and dashboard",
+          view: dashboard,
+          start: { page: "Dashboard" },
+          steps: [
+            [
+              "Your menu",
+              "The left side has every page. The top box shows the organization and site.",
+              {},
+            ],
+            [
+              "Choose a site",
+              "“All assigned sites” shows your sites together. Pick one station to work in it.",
+              { at: "site", click: true, set: { site: "Site 01" } },
+            ],
+            ["Saved fuel amounts", "Total value, number of entries and litres.", { at: "m1" }],
+            [
+              "Saved collections",
+              "Money recorded. “Unverified” means nobody has checked it cleared.",
+              { at: "m2" },
+            ],
+            [
+              "Ledger outstanding is blank",
+              "What customers owe is not calculated yet.",
+              { at: "m3" },
+            ],
+            [
+              "Change the period",
+              "All dates, Today or This month.",
+              { at: "period", click: true, set: { period: "This month" } },
+            ],
+            ["Daily activity", "The last 7 dates that have saved records.", { at: "chart" }],
+            ["Shortcuts", "Start a new fuel entry or collection from here.", { at: "newfuel" }],
+          ],
+        },
+        {
+          id: "customer",
+          name: "Add a customer",
+          view: dashboard,
+          start: { page: "Dashboard", site: "Site 01" },
+          steps: [
+            [
+              "Open Customers",
+              "Add the customer before anything else about them.",
+              { at: "nav:Customers", click: true, view: customers, set: { page: "Customers" } },
+            ],
+            [
+              "Select New customer",
+              "A form opens.",
+              { at: "newcust", click: true, set: { dialog: customerDialog } },
+            ],
+            [
+              "Type the business name",
+              "Needed. A name can be used only once at each site.",
+              { at: "cname", type: { cname: "Example Transport" } },
+            ],
+            ["Contact person", "Optional.", { at: "cperson", type: { cperson: "Contact A" } }],
+            [
+              "Phone",
+              "Optional. 6 to 15 digits, or leave it blank.",
+              { at: "cphone", type: { cphone: "9000000001" } },
+            ],
+            [
+              "Select Add customer",
+              "The customer is saved for everyone with access to this site.",
+              { at: "addcust", click: true, set: { dialog: null, addedCustomer: true } },
+            ],
+            [
+              "Saved",
+              "↗ opens the ledger, ✎ edits, 🗑 removes. A customer with vehicles or entries cannot be removed.",
+              { at: "table" },
+            ],
+          ],
+        },
+        {
+          id: "vehicle",
+          name: "Add a vehicle",
+          view: customers,
+          start: { page: "Customers", site: "Site 01", addedCustomer: true },
+          steps: [
+            [
+              "Open Vehicles",
+              "Vehicles belong to customers.",
+              { at: "nav:Vehicles", click: true, view: vehicles, set: { page: "Vehicles" } },
+            ],
+            [
+              "Select New vehicle",
+              "If the button is grey, add a customer first.",
+              { at: "newveh", click: true, set: { dialog: vehicleDialog } },
+            ],
+            [
+              "Choose the customer",
+              "Pick from saved customers.",
+              { at: "vcust", click: true, set: { vcust: "Example Transport — Site 01" } },
+            ],
+            [
+              "Type the registration",
+              "Spaces and hyphens are removed and letters become capitals. No duplicates.",
+              { at: "vreg", type: { vreg: "KA01AB1234" } },
+            ],
+            [
+              "Select Add vehicle",
+              "Saved and ready for fuel entries.",
+              { at: "addveh", click: true, set: { dialog: null, addedVehicle: true } },
+            ],
+            ["Done", "The vehicle now appears when you choose this customer.", { at: "table" }],
+          ],
+        },
+        {
+          id: "fuel",
+          name: "Fuel entry",
+          view: dashboard,
+          start: { page: "Dashboard", site: "Site 01" },
+          steps: [
+            [
+              "Open Fuel transactions",
+              "Keep the paper slip beside you.",
+              {
+                at: "nav:Fuel transactions",
+                click: true,
+                view: entries,
+                set: { page: "Fuel transactions" },
+              },
+            ],
+            [
+              "Select New fuel entry",
+              "If you view all sites, the form asks for the site first.",
+              { at: "new", click: true, set: { dialog: fuelForm } },
+            ],
+            [
+              "Slip / reference",
+              "The number on your paper slip. The date is today and cannot be in the future.",
+              { at: "ref", type: { ref: "SLIP-101" } },
+            ],
+            [
+              "Choose the customer",
+              "Only saved customers of this site are listed.",
+              {
+                at: "cust",
+                click: true,
+                set: { cust: "Example Transport", veh: "Choose a saved vehicle" },
+              },
+            ],
+            [
+              "Choose the vehicle",
+              "Only that customer's vehicles are listed.",
+              { at: "veh", click: true, set: { veh: "KA01AB1234" } },
+            ],
+            [
+              "Fuel type",
+              "Diesel or Petrol.",
+              { at: "fuel", click: true, set: { fuel: "Diesel" } },
+            ],
+            ["Quantity in litres", "Up to two decimal places.", { at: "qty", type: { qty: "60" } }],
+            [
+              "Slip amount in ₹",
+              "FuelLedger does not check the rate or question large amounts. Type it carefully.",
+              { at: "amt", type: { amt: "5430" } },
+            ],
+            [
+              "Select Review entry",
+              "Nothing is saved yet.",
+              { at: "review", click: true, set: { dialog: reviewDialog("fuel") } },
+            ],
+            [
+              "Compare with the slip",
+              "Check every line, especially the amount. A repeated reference shows a warning.",
+              { at: "summary" },
+            ],
+            [
+              "Saved means final",
+              "A saved entry cannot be changed or removed. Use Back to correct it first.",
+              { at: "warning" },
+            ],
+            [
+              "Select Save entry",
+              "The entry is recorded.",
+              { at: "save", click: true, set: { dialog: null, added: "saved" } },
+            ],
+            [
+              "It shows as Saved",
+              "Record the real transaction in your books too.",
+              { at: "table" },
+            ],
+            [
+              "What happens next",
+              "Your Owner can see this record.",
+              { view: afterSave, set: { lit: 3 } },
+            ],
+            [
+              "The Owner's side",
+              "Website and mobile app show it. Phone and browser notifications are built but need a database update before they are sent.",
+              { view: afterSave, set: { lit: 6 } },
+            ],
+          ],
+        },
+        {
+          id: "collection",
+          name: "Collection",
+          view: dashboard,
+          start: { page: "Dashboard", site: "Site 01" },
+          steps: [
+            [
+              "Open Collections",
+              "Use this when a customer pays.",
+              { at: "nav:Collections", click: true, view: entries, set: { page: "Collections" } },
+            ],
+            [
+              "Select New collection",
+              "A form opens.",
+              { at: "new", click: true, set: { dialog: colForm } },
+            ],
+            [
+              "Receipt / reference",
+              "The number on the receipt.",
+              { at: "ref", type: { ref: "RCPT-01" } },
+            ],
+            [
+              "Choose the customer",
+              "Who paid.",
+              { at: "cust", click: true, set: { cust: "Example Transport" } },
+            ],
+            ["Collection amount", "In rupees.", { at: "amt", type: { amt: "3000" } }],
+            [
+              "Payment mode",
+              "Cash, UPI, Bank transfer or Cheque.",
+              { at: "mode", click: true, set: { mode: "UPI" } },
+            ],
+            [
+              "Select Review entry",
+              "Check before saving.",
+              { at: "review", click: true, set: { dialog: reviewDialog("payment") } },
+            ],
+            [
+              "Select Save entry",
+              "It cannot be changed or removed.",
+              { at: "save", click: true, set: { dialog: null, added: "saved" } },
+            ],
+            [
+              "Not proof of money",
+              "Check your bank, UPI app or cash drawer. Clearance is “Not verified”.",
+              { at: "s3" },
+            ],
+          ],
+        },
+        // offline-sync.tsx, sync-indicator.tsx
+        {
+          id: "offline",
+          name: "No internet",
+          view: entries,
+          start: { page: "Fuel transactions", site: "Site 01" },
+          steps: [
+            [
+              "The internet drops",
+              "FuelLedger must already be open and signed in. Do not close or reload it.",
+              { set: { offline: true } },
+            ],
+            [
+              "Add the entry as usual",
+              "Fill the form and review it.",
+              { at: "new", click: true, set: { dialog: reviewDialog("fuel") } },
+            ],
+            ["Read the offline message", "The entry will wait on this device.", { at: "offmsg" }],
+            [
+              "Select Save entry",
+              "It is queued, not saved yet.",
+              { at: "save", click: true, set: { dialog: null, added: "queued", queued: true } },
+            ],
+            [
+              "Offline - Queued",
+              "It is in no total and no export. Keep the paper slip.",
+              { at: "table" },
+            ],
+            [
+              "Internet is back",
+              "Entries are sent automatically, oldest first. You can also select Sync Now.",
+              {
+                at: "sync",
+                click: true,
+                set: {
+                  offline: false,
+                  queued: false,
+                  added: "saved",
+                  toast: "Connection is back. Entry sent.",
+                },
+              },
+            ],
+            [
+              "Now it is Saved",
+              "If you ever see “Sync failed”, open the queued count, read why, fix it and select Sync Now. Discard deletes the entry for good.",
+              { at: "table", set: { toast: null } },
+            ],
+          ],
+        },
+        {
+          id: "find",
+          name: "Find and export",
+          view: entries,
+          start: { page: "Fuel transactions", site: "Site 01", added: "saved" },
+          steps: [
+            [
+              "Search",
+              "By reference, customer, vehicle or notes.",
+              { at: "query", type: { query: "SLIP-101" } },
+            ],
+            ["Filter", "By fuel type (or payment mode on Collections).", { at: "filter" }],
+            [
+              "Dates",
+              "Set From and To. The end date cannot be before the start date.",
+              { at: "from" },
+            ],
+            [
+              "Export preview",
+              "Downloads what is on screen as a CSV file.",
+              {
+                at: "export",
+                click: true,
+                set: { toast: "FuelLedger-UNPOSTED-fuel.csv downloaded" },
+              },
+            ],
+            [
+              "Not an accounting record",
+              "The file starts with “UNPOSTED PREVIEW - NOT FOR ACCOUNTING”.",
+              {},
+            ],
+          ],
+        },
+        {
+          id: "ledger",
+          name: "Customer ledger",
+          view: customers,
+          start: { page: "Customers", site: "Site 01", addedCustomer: true },
+          steps: [
+            [
+              "From the customer list",
+              "Select the arrow beside a customer, or open Customer ledger in the menu.",
+              { at: "toledger", click: true, view: ledger, set: { page: "Customer ledger" } },
+            ],
+            [
+              "Choose the customer",
+              "Pick one account.",
+              { at: "lcust", click: true, set: { lcust: "Example Transport" } },
+            ],
+            ["Their activity", "Fuel entries and collections together.", { at: "table" }],
+            ["No balance yet", "There is no opening balance, running balance or amount due.", {}],
+          ],
+        },
+        {
+          id: "reports",
+          name: "Reports and ageing",
+          view: dashboard,
+          start: { page: "Dashboard", site: "Site 01" },
+          steps: [
+            [
+              "Open Reports",
+              "A page of shortcuts.",
+              { at: "nav:Reports", click: true, view: reports, set: { page: "Reports" } },
+            ],
+            [
+              "Three shortcuts work",
+              "Fuel activity, Collections and Customer activity.",
+              { at: "r:Fuel activity" },
+            ],
+            [
+              "Receivables ageing",
+              "Not available yet.",
+              {
+                at: "r:Receivables ageing",
+                click: true,
+                view: ageing,
+                set: { page: "Receivables ageing" },
+              },
+            ],
+            [
+              "Waiting for accounting rules",
+              "It follows after the accounting workbook is reviewed.",
+              { at: "locked" },
+            ],
+          ],
+        },
+        {
+          id: "prefs",
+          name: "My preferences",
+          view: dashboard,
+          start: { page: "Dashboard", site: "Site 01" },
+          steps: [
+            [
+              "Open Settings",
+              "Bottom of the menu.",
+              { at: "nav:Settings", click: true, view: settings, set: { page: "Settings" } },
+            ],
+            [
+              "My preferences",
+              "A Manager sees Sites and My preferences.",
+              { at: "prefs", click: true, set: { tab: true } },
+            ],
+            [
+              "Theme",
+              "Organization default, Light, Dark or System.",
+              { at: "ptheme", click: true, set: { ptheme: "Light" } },
+            ],
+            [
+              "Density",
+              "Comfortable or Compact.",
+              { at: "pdensity", click: true, set: { pdensity: "Compact" } },
+            ],
+            ["Sidebar", "Expanded or Collapsed.", { at: "pside" }],
+            [
+              "Select Save preferences",
+              "Your current site is remembered too.",
+              { at: "saveprefs", click: true, set: { toast: "Personal preferences saved." } },
+            ],
+          ],
+        },
+        {
+          id: "phone",
+          name: "On a phone",
+          view: phone,
+          start: { page: "Dashboard" },
+          steps: [
+            [
+              "Same website, small screen",
+              "Open your FuelLedger address in the phone browser and sign in.",
+              {},
+            ],
+            ["Open the menu", "Select ☰.", { at: "menu", click: true, set: { drawer: true } }],
+            [
+              "Pick a page",
+              "The same pages as on a computer.",
+              {
+                at: "p:Fuel transactions",
+                click: true,
+                set: { drawer: false, page: "Fuel transactions" },
+              },
+            ],
+            ["Rows become cards", "Everything you can do on a computer works here.", { at: "pc" }],
+          ],
+        },
+        {
+          id: "finish",
+          name: "Sign out",
+          view: dashboard,
+          start: { page: "Dashboard", site: "Site 01" },
+          steps: [
+            ["Before you leave", "Is the queued count empty? Are your books up to date?", {}],
+            [
+              "Select Sign out",
+              "Bottom of the menu. Always do this on a shared computer.",
+              { at: "signout", click: true, view: signin, set: {} },
+            ],
+            [
+              "Day complete",
+              "Only an Owner can add sites, invite staff, change roles or branding. That is the next walkthrough.",
+              {},
+            ],
+          ],
+        },
+      ];
+
+      /* ---------- player ---------- */
+      const $ = (id) => document.getElementById(id);
+      const screen = $("screen"),
+        viewport = $("viewport");
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const seen = new Set();
+      let chapter = 0,
+        step = 0,
+        playing = false,
+        run = 0,
+        scale = 1;
+
+      // State after `upto` steps of a chapter. A step that changes view from a flow or sign-in keeps earlier state.
+      function stateAt(c, upto) {
+        let view = c.view,
+          state = { ...c.start };
+        for (let i = 0; i < upto; i++) {
+          const o = c.steps[i][2];
+          Object.assign(state, o.type, o.set);
+          if (o.view) view = o.view;
+          // returning to the sign-in page starts it clean
+          if (o.view === signin) state = { ...o.set };
+        }
+        return { view, state };
+      }
+      function draw({ view, state }) {
+        // A dialog or menu that is already open must not slide in again on every step.
+        const open = [".dialog", ".drawer", ".toast"].filter((s) => screen.querySelector(s));
+        screen.innerHTML = view(state);
+        open.forEach((s) => screen.querySelector(s)?.style.setProperty("animation", "none"));
+      }
+      // On a narrow window the screen stays readable: it is enlarged and follows the action.
+      function fit() {
+        const width = viewport.clientWidth;
+        scale = Math.max(width / 1100, 0.6);
+        viewport.style.height = `${680 * Math.min(scale, Math.max(width / 1100, 0.6))}px`;
+        follow();
+      }
+      function follow(element = screen.querySelector(".focus, .node.now, .dialog, .phone")) {
+        const width = viewport.clientWidth;
+        let x = 0;
+        if (element && 1100 * scale > width + 1) {
+          const box = element.getBoundingClientRect(),
+            base = screen.getBoundingClientRect();
+          const middle =
+            ((box.left + box.width / 2 - base.left) / (base.width || 1)) * 1100 * scale;
+          x = Math.min(Math.max(middle - width / 2, 0), 1100 * scale - width);
+        }
+        screen.style.transform = `translateX(${-x}px) scale(${scale})`;
+      }
+      const cursor = document.createElement("div");
+      cursor.className = "cursor";
+      cursor.innerHTML =
+        '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 2l16 9-7 2-3 7z" fill="#111" stroke="#fff" stroke-width="1.5"/></svg>';
+      let pos = { x: 560, y: 340 };
+      function placeCursor() {
+        cursor.style.transform = `translate(${pos.x}px,${pos.y}px)`;
+      }
+      const speed = () => Number($("speed").value);
+      const wait = (ms, id) =>
+        new Promise((resolve, reject) =>
+          setTimeout(
+            () => (id === run ? resolve() : reject(new Error("stopped"))),
+            reduced ? 0 : ms * speed(),
+          ),
+        );
+      const find = (key) => screen.querySelector(`[data-k="${key}"]`);
+
+      function labels() {
+        const c = CHAPTERS[chapter];
+        const [title, tip] = c.steps[step];
+        $("count").textContent =
+          `Chapter ${chapter + 1} of ${CHAPTERS.length} · ${c.name} · Step ${step + 1} of ${c.steps.length}`;
+        $("title").textContent = title;
+        $("tip").textContent = tip;
+        $("progress").style.width = `${((step + 1) / c.steps.length) * 100}%`;
+        $("back").disabled = chapter === 0 && step === 0;
+        $("next").disabled = chapter === CHAPTERS.length - 1 && step === c.steps.length - 1;
+        $("play").textContent = playing ? "❚❚ Pause" : "▶ Play";
+        seen.add(chapter);
+        [...$("nav").children].forEach((b, i) => {
+          b.classList.toggle("on", i === chapter);
+          b.classList.toggle("seen", seen.has(i));
+        });
+        // keep the current chapter visible in the sideways list on a phone
+        const current = $("nav").children[chapter];
+        $("nav").scrollLeft = current.offsetLeft - $("nav").offsetLeft - 8;
+        history.replaceState(null, "", `#${c.id}/${step + 1}`);
+      }
+
+      // Animate one step: move, type or click, then show the result.
+      async function animate() {
+        const id = ++run;
+        const c = CHAPTERS[chapter];
+        const o = c.steps[step][2];
+        labels();
+        draw(stateAt(c, step));
+        const target = o.at && find(o.at);
+        screen.append(cursor);
+        cursor.style.opacity = target ? 1 : 0;
+        placeCursor();
+        follow(target || undefined);
+        try {
+          if (target) {
+            await wait(150, id);
+            const box = target.getBoundingClientRect(),
+              base = screen.getBoundingClientRect();
+            pos = {
+              x: (box.left - base.left + Math.min(box.width * 0.6, box.width - 6)) / scale,
+              y: (box.top - base.top + box.height * 0.55) / scale,
+            };
+            placeCursor();
+            await wait(750, id);
+            target.classList.add("focus");
+            if (o.click || o.type) {
+              const ripple = document.createElement("div");
+              ripple.className = "ripple";
+              ripple.style.left = `${pos.x}px`;
+              ripple.style.top = `${pos.y}px`;
+              screen.append(ripple);
+              await wait(450, id);
+            }
+            if (o.type) {
+              const [text] = Object.values(o.type);
+              const slot = target.querySelector("[data-v]");
+              for (let i = 1; i <= text.length; i++) {
+                slot.textContent = text.slice(0, i);
+                await wait(60, id);
+              }
+            }
+          } else {
+            await wait(500, id);
+          }
+          draw(stateAt(c, step + 1));
+          screen.append(cursor);
+          // keep the highlight when the step only points at something
+          if (o.at && !o.click) find(o.at)?.classList.add("focus");
+          follow();
+          if (!playing) return;
+          await wait(2600, id);
+          const lastStep = step === c.steps.length - 1;
+          if (!lastStep) step++;
+          else if ($("auto").checked && chapter < CHAPTERS.length - 1) {
+            chapter++;
+            step = 0;
+          } else {
+            playing = false;
+            labels();
+            return;
+          }
+          animate();
+        } catch (error) {
+          if (error.message !== "stopped") throw error;
+        }
+      }
+
+      function go(c, s = 0) {
+        chapter = c;
+        step = s;
+        animate();
+      }
+      function forward() {
+        playing = false;
+        if (step < CHAPTERS[chapter].steps.length - 1) go(chapter, step + 1);
+        else if (chapter < CHAPTERS.length - 1) go(chapter + 1);
+      }
+      function backward() {
+        playing = false;
+        if (step > 0) go(chapter, step - 1);
+        else if (chapter > 0) go(chapter - 1, CHAPTERS[chapter - 1].steps.length - 1);
+      }
+      function toggle() {
+        playing = !playing;
+        const last = chapter === CHAPTERS.length - 1 && step === CHAPTERS[chapter].steps.length - 1;
+        if (playing && last) go(0);
+        else animate();
+      }
+
+      CHAPTERS.forEach((c, i) => {
+        const b = document.createElement("button");
+        b.innerHTML = `<i>${i + 1}</i>${c.name}`;
+        b.onclick = () => {
+          playing = true;
+          go(i);
+        };
+        $("nav").append(b);
+      });
+      $("play").onclick = toggle;
+      $("next").onclick = forward;
+      $("back").onclick = backward;
+      $("replay").onclick = () => {
+        playing = true;
+        go(chapter);
+      };
+      function jump(event) {
+        const node = event.target.closest("[data-go]");
+        if (!node) return;
+        playing = true;
+        go(CHAPTERS.findIndex((c) => c.id === node.dataset.go));
+      }
+      screen.addEventListener("click", jump);
+      screen.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") jump(e);
+      });
+      addEventListener("keydown", (e) => {
+        if (e.target.closest("input,select")) return;
+        if (e.key === "ArrowRight") forward();
+        else if (e.key === "ArrowLeft") backward();
+        else if (e.key === " " && !e.target.closest("button")) {
+          e.preventDefault();
+          toggle();
+        }
+      });
+      const root = document.documentElement;
+      root.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      $("theme").onclick = () => {
+        root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+      };
+      new ResizeObserver(fit).observe(viewport);
+      fit();
+
+      const [hashId, hashStep] = location.hash.slice(1).split("/");
+      const start = Math.max(
+        0,
+        CHAPTERS.findIndex((c) => c.id === hashId),
+      );
+      playing = !reduced;
+      go(
+        start,
+        Math.min(Math.max(0, (Number(hashStep) || 1) - 1), CHAPTERS[start].steps.length - 1),
+      );
+    </script>
+  </body>
+</html>

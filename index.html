@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FuelLedger Walkthroughs</title>
+    <style>
+      :root {
+        --bg: #f7f9f8;
+        --card: #fff;
+        --ink: #1c2523;
+        --muted: #68756f;
+        --line: #e2e8e5;
+        --primary: #006b52;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111614;
+          --card: #1b221f;
+          --ink: #eef4f1;
+          --muted: #a7b3ae;
+          --line: #323c38;
+          --primary: #4cc9a0;
+        }
+      }
+      body {
+        margin: 0;
+        padding: 32px 16px;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.5 system-ui,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 640px;
+        margin: 0 auto;
+      }
+      a {
+        display: block;
+        margin-top: 14px;
+        padding: 18px 20px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        color: inherit;
+        text-decoration: none;
+      }
+      a:hover,
+      a:focus-visible {
+        border-color: var(--primary);
+      }
+      a strong {
+        display: block;
+        color: var(--primary);
+        font-size: 18px;
+      }
+      p,
+      a span {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>⛽ FuelLedger walkthroughs</h1>
+      <p>Choose your role. Each one plays like a video. Example data only.</p>
+      <a href="manager.html">
+        <strong>Manager →</strong>
+        <span>Daily work on the website: customers, vehicles, fuel entries and collections.</span>
+      </a>
+      <a href="owner.html">
+        <strong>Owner →</strong>
+        <span>Set up stations and staff, watch all sites, and use the Owner mobile app.</span>
+      </a>
+    </main>
+  </body>
+</html>

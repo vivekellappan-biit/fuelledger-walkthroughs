@@ -1,0 +1,2194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FuelLedger Owner Walkthrough</title>
+    <style>
+      :root {
+        --bg: #f7f9f8;
+        --card: #fff;
+        --ink: #1c2523;
+        --muted: #68756f;
+        --line: #e2e8e5;
+        --primary: #006b52;
+        --on-primary: #fff;
+        --soft: #e3f3ec;
+        --amber: #8a5a00;
+        --amber-soft: #fff1d6;
+        --blue: #1d5f8a;
+        --blue-soft: #e3f1fb;
+        --red: #a5282c;
+        --shadow: 0 10px 30px rgba(15, 40, 32, 0.1);
+      }
+      :root[data-theme="dark"] {
+        --bg: #111614;
+        --card: #1b221f;
+        --ink: #eef4f1;
+        --muted: #a7b3ae;
+        --line: #323c38;
+        --primary: #4cc9a0;
+        --on-primary: #06211a;
+        --soft: #1d3a30;
+        --amber: #ffc86b;
+        --amber-soft: #3d2e10;
+        --blue: #8fccf2;
+        --blue-soft: #173243;
+        --red: #ff9a9d;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 "DM Sans",
+          system-ui,
+          "Segoe UI",
+          sans-serif;
+        padding: 16px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: Manrope, system-ui, "Segoe UI", sans-serif;
+        line-height: 1.25;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 3px solid var(--primary);
+        outline-offset: 2px;
+      }
+      .page {
+        max-width: 1360px;
+        margin: 0 auto;
+      }
+      header.top {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      header.top h1 {
+        font-size: 20px;
+      }
+      header.top p {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      nav.chapters {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 8px;
+      }
+      nav.chapters button {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        text-align: left;
+        border: 0;
+        background: none;
+        padding: 8px 10px;
+        border-radius: 9px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      nav.chapters button i {
+        font-style: normal;
+        flex: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+      }
+      nav.chapters button.on {
+        background: var(--soft);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      nav.chapters button.on i,
+      nav.chapters button.seen i {
+        background: var(--primary);
+        color: var(--on-primary);
+        border-color: var(--primary);
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 9px;
+        padding: 7px 14px;
+      }
+      .btn.primary {
+        background: var(--primary);
+        color: var(--on-primary);
+        border-color: var(--primary);
+        font-weight: 600;
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .caption {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+        min-height: 106px;
+      }
+      .caption small {
+        color: var(--primary);
+        font-weight: 700;
+      }
+      .caption h2 {
+        font-size: 18px;
+        margin: 2px 0;
+      }
+      .caption p {
+        color: var(--muted);
+      }
+      /* keep the controls on screen: never taller than the window allows */
+      .viewport {
+        position: relative;
+        margin-inline: auto;
+        width: min(100%, max(640px, calc((100vh - 270px) * 1.617)));
+        max-width: 100%;
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+      .screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: top left;
+        transition: transform 0.35s;
+        width: 1100px;
+        height: 680px;
+        font-size: 14px;
+        background: var(--bg);
+        overflow: hidden;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 12px;
+      }
+      .controls .grow {
+        flex: 1;
+      }
+      .controls label {
+        color: var(--muted);
+        font-size: 13px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .bar {
+        height: 4px;
+        background: var(--line);
+        border-radius: 4px;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+      .bar div {
+        height: 100%;
+        background: var(--primary);
+        transition: width 0.4s;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 10px;
+      }
+
+      /* mock workspace */
+      .app {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        height: 100%;
+      }
+      .side {
+        background: var(--card);
+        border-right: 1px solid var(--line);
+        padding: 14px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .logo {
+        font-weight: 800;
+        font-size: 19px;
+        padding: 0 8px 10px;
+        color: var(--ink);
+      }
+      .logo b {
+        color: var(--primary);
+      }
+      .switch {
+        border-block: 1px solid var(--line);
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      .switch strong {
+        display: block;
+      }
+      .sel {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-top: 3px;
+        background: var(--card);
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 28px;
+        align-items: center;
+      }
+      .sel::after {
+        content: "▾";
+        color: var(--muted);
+      }
+      .label {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        padding: 6px 8px 2px;
+      }
+      .nav {
+        padding: 6px 10px;
+        border-radius: 8px;
+        color: var(--muted);
+      }
+      .nav.on {
+        background: var(--soft);
+        color: var(--primary);
+        font-weight: 700;
+      }
+      .side .grow {
+        flex: 1;
+      }
+      .who {
+        border-top: 1px solid var(--line);
+        padding: 8px 10px;
+        margin-top: 4px;
+        line-height: 1.3;
+      }
+      .who small {
+        display: block;
+        color: var(--muted);
+      }
+      .body {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .bartop {
+        height: 52px;
+        border-bottom: 1px solid var(--line);
+        background: var(--card);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 22px;
+        color: var(--muted);
+      }
+      .bartop strong {
+        color: var(--ink);
+      }
+      .bartop .grow,
+      .row .grow {
+        flex: 1;
+      }
+      .main {
+        padding: 18px 26px;
+        overflow: hidden;
+        position: relative;
+      }
+      .head {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        margin-bottom: 12px;
+      }
+      .head > div:first-child {
+        flex: 1;
+      }
+      .head h3 {
+        font-size: 24px;
+      }
+      .head p {
+        color: var(--muted);
+      }
+      .mb {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 8px;
+        padding: 8px 14px;
+        white-space: nowrap;
+        display: inline-block;
+      }
+      .mb.p {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: var(--on-primary);
+        font-weight: 600;
+      }
+      .pill {
+        display: inline-block;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 12px;
+        background: var(--soft);
+        color: var(--primary);
+        white-space: nowrap;
+      }
+      .pill.a {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+      .status {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        border-block: 1px solid var(--line);
+        padding: 8px 0;
+        margin-bottom: 12px;
+        color: var(--muted);
+      }
+      .status > span:last-child {
+        flex: 1;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 14px;
+      }
+      .card span {
+        color: var(--muted);
+      }
+      .card strong {
+        display: block;
+        font-size: 24px;
+        margin: 4px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        border: 1px solid var(--line);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-size: 11px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 44px 20px;
+      }
+      .empty h4 {
+        color: var(--ink);
+        font-size: 17px;
+      }
+      .scrim {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.38);
+        display: grid;
+        place-items: center;
+        z-index: 2;
+      }
+      .dialog {
+        width: 520px;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 22px;
+        box-shadow: var(--shadow);
+        animation: rise 0.3s ease;
+      }
+      .dialog h4 {
+        font-size: 17px;
+      }
+      .dialog > p {
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 12px;
+      }
+      .f {
+        display: block;
+        margin-top: 8px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .in {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--card);
+        padding: 6px 10px;
+        min-height: 34px;
+        font-weight: 400;
+        font-size: 14px;
+        margin-top: 2px;
+      }
+      .in.sel {
+        margin-top: 2px;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 5px;
+        margin-top: 8px;
+      }
+      dt {
+        color: var(--muted);
+      }
+      .warn {
+        color: var(--amber);
+        margin-top: 10px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 6px;
+      }
+      .tab {
+        padding: 6px 12px;
+        border-radius: 8px;
+        color: var(--muted);
+      }
+      .tab.on {
+        background: var(--soft);
+        color: var(--primary);
+        font-weight: 700;
+      }
+      .reports {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .toast {
+        position: absolute;
+        right: 18px;
+        bottom: 18px;
+        background: var(--ink);
+        color: var(--bg);
+        padding: 10px 16px;
+        border-radius: 10px;
+        z-index: 3;
+        animation: rise 0.3s ease;
+      }
+      .focus {
+        outline: 3px solid var(--primary);
+        outline-offset: 3px;
+        border-radius: 8px;
+      }
+
+      /* sign-in and phone */
+      .signin {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        background: var(--card);
+      }
+      .signin > div {
+        width: 360px;
+      }
+      .signin h3 {
+        font-size: 28px;
+      }
+      .signin .mb {
+        width: 100%;
+        text-align: center;
+        margin-top: 16px;
+      }
+      .link {
+        color: var(--primary);
+        margin-top: 10px;
+        display: inline-block;
+      }
+      .phonewrap {
+        height: 100%;
+        display: flex;
+        gap: 46px;
+        align-items: center;
+        justify-content: center;
+      }
+      .phone {
+        width: 310px;
+        height: 640px;
+        border: 9px solid var(--ink);
+        border-radius: 40px;
+        background: var(--bg);
+        overflow: hidden;
+        position: relative;
+      }
+      .phone .main {
+        padding: 14px;
+      }
+      .phone .cards {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .phone .card strong {
+        font-size: 20px;
+      }
+      .drawer {
+        position: absolute;
+        inset: 0 70px 0 0;
+        background: var(--card);
+        padding: 14px;
+        box-shadow: var(--shadow);
+        z-index: 2;
+        animation: slide 0.3s ease;
+      }
+      .side-note {
+        max-width: 300px;
+        font-size: 17px;
+        color: var(--muted);
+      }
+
+      /* flow diagrams */
+      .flow {
+        height: 100%;
+        padding: 34px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 26px;
+      }
+      .flow h3 {
+        text-align: center;
+        font-size: 22px;
+      }
+      .lane {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .node {
+        width: 180px;
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        padding: 12px;
+        text-align: center;
+        opacity: 0.35;
+        transition: 0.4s;
+      }
+      .node em {
+        font-size: 26px;
+        font-style: normal;
+        display: block;
+      }
+      .node strong {
+        display: block;
+      }
+      .node span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .node.lit {
+        opacity: 1;
+        border-color: var(--primary);
+      }
+      .node.now {
+        transform: translateY(-6px);
+        box-shadow: var(--shadow);
+        background: var(--soft);
+      }
+      .node.soon {
+        border-style: dashed;
+      }
+      .arrow {
+        align-self: center;
+        color: var(--muted);
+        font-size: 20px;
+      }
+
+      .cursor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        z-index: 9;
+        pointer-events: none;
+        transition:
+          transform 0.7s cubic-bezier(0.45, 0.05, 0.25, 1),
+          opacity 0.2s;
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+      }
+      .ripple {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        margin: -22px;
+        border-radius: 50%;
+        border: 3px solid var(--primary);
+        z-index: 8;
+        animation: ripple 0.6s ease-out forwards;
+      }
+      @keyframes ripple {
+        from {
+          transform: scale(0.2);
+          opacity: 1;
+        }
+        to {
+          transform: scale(1.4);
+          opacity: 0;
+        }
+      }
+      @keyframes rise {
+        from {
+          transform: translateY(14px);
+          opacity: 0;
+        }
+      }
+      @keyframes slide {
+        from {
+          transform: translateX(-100%);
+        }
+      }
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        nav.chapters {
+          flex-direction: row;
+          overflow-x: auto;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+      /* chapter groups and the Owner app */
+      nav.chapters .label {
+        padding-top: 10px;
+      }
+      @media (min-width: 861px) {
+        nav.chapters {
+          max-height: calc(100vh - 100px);
+          overflow-y: auto;
+          position: sticky;
+          top: 8px;
+        }
+      }
+      @media (max-width: 860px) {
+        nav.chapters .label {
+          display: none;
+        }
+      }
+      .mbody {
+        height: 572px;
+        overflow: hidden;
+        padding: 14px 12px;
+        font-size: 13px;
+      }
+      .mbody.bare {
+        height: 100%;
+      }
+      .mbody h4 {
+        font-size: 18px;
+      }
+      .mbody small {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .msec {
+        margin-top: 8px;
+        padding: 8px 10px;
+      }
+      .msec strong {
+        font-size: 20px;
+        margin: 0;
+      }
+      .mrow {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 5px 0;
+      }
+      .mrow .grow {
+        flex: 1;
+      }
+      .chips {
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 2px 8px;
+        font-size: 12px;
+      }
+      .chip.on {
+        background: var(--soft);
+        border-color: var(--primary);
+      }
+      .mbars {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        height: 76px;
+        padding-top: 6px;
+      }
+      .mbars i {
+        width: 20px;
+        border-radius: 3px;
+        background: var(--primary);
+      }
+      .tabbar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50px;
+        display: flex;
+        border-top: 1px solid var(--line);
+        background: var(--card);
+      }
+      .tabbar span {
+        flex: 1;
+        text-align: center;
+        font-size: 10px;
+        color: var(--muted);
+        padding-top: 4px;
+      }
+      .tabbar em {
+        display: block;
+        font-style: normal;
+        font-size: 16px;
+      }
+      .tabbar .on {
+        color: var(--primary);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+  FuelLedger OWNER walkthrough (website and mobile app). Open this file in any browser; it needs no internet or server.
+  Keep it current: see "Workflow walkthroughs" in AGENTS.md.
+  Wording comes from the app source, not from this file. Each chapter in CHAPTERS names its sources.
+  Last checked against the code: 2026-11-26.
+-->
+    <div class="page">
+      <header class="top">
+        <div>
+          <h1>⛽ FuelLedger · Owner walkthrough</h1>
+          <p>Watch each task being done, in the order of a working day. Example data only.</p>
+        </div>
+        <button class="btn" id="theme">Light / Dark</button>
+      </header>
+      <div class="layout">
+        <nav class="chapters" id="nav" aria-label="Chapters"></nav>
+        <section>
+          <div class="caption" aria-live="polite">
+            <small id="count"></small>
+            <h2 id="title"></h2>
+            <p id="tip"></p>
+          </div>
+          <div class="viewport" id="viewport"><div class="screen" id="screen"></div></div>
+          <div class="bar"><div id="progress"></div></div>
+          <div class="controls">
+            <button class="btn" id="back">← Back</button>
+            <button class="btn primary" id="play">▶ Play</button>
+            <button class="btn" id="next">Next →</button>
+            <button class="btn" id="replay">↻ Replay chapter</button>
+            <span class="grow"></span>
+            <label><input type="checkbox" id="auto" checked /> Continue to next chapter</label>
+            <label
+              >Speed
+              <select id="speed">
+                <option value="1.5">Slow</option>
+                <option value="1" selected>Normal</option>
+                <option value="0.6">Fast</option>
+              </select>
+            </label>
+          </div>
+          <p class="note">
+            Keyboard: ← → to step, space to play or pause. The screens are drawings of the real app,
+            so small details can differ.
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+      const ESC = (s) =>
+        String(s ?? "").replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      const MENU = [
+        "Dashboard",
+        "Fuel transactions",
+        "Collections",
+        "Customer ledger",
+        "Reports",
+        "Receivables ageing",
+        "Customers",
+        "Vehicles",
+      ];
+      const btn = (k, text, primary) =>
+        `<span class="mb${primary ? " p" : ""}" data-k="${k}">${text}</span>`;
+      const field = (s, k, label, placeholder = "", select = false) =>
+        `<label class="f">${label}<div class="in${select ? " sel" : ""}" data-k="${k}"><span data-v>${ESC(s[k] ?? placeholder)}</span></div></label>`;
+      const head = (title, sub, actions = "") =>
+        `<div class="head"><div><h3>${title}</h3><p>${sub}</p></div>${actions}</div>`;
+      const status = (pill, text, amber, extra = "") =>
+        `<div class="status"><span class="pill${amber ? " a" : ""}">${pill}</span><span>${text}</span>${extra}</div>`;
+      const notPosted = (extra) =>
+        status(
+          "Not posted",
+          "Saved entries can't be changed. Nothing is posted to accounts.",
+          true,
+          extra,
+        );
+      const card = (k, t, v, d) =>
+        `<div class="card" data-k="${k}"><span>${t}</span><strong>${v}</strong><span>${d}</span></div>`;
+      const table = (cols, rows, k = "table") =>
+        `<table data-k="${k}"><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
+      const signin = (s) => `<div class="signin"><div>
+  <span class="label">STAFF WORKSPACE</span><h3>${s.forgot ? "Reset your password" : "Welcome back"}</h3>
+  <p style="color:var(--muted)">${s.forgot ? "We email you a link to choose a new one." : "Sign in to your FuelLedger staff account."}</p>
+  ${field(s, "email", "Email address", "you@company.com")}${s.forgot ? btn("sendlink", "Send reset link", true) : field(s, "pass", "Password") + btn("signinbtn", "→ Sign in", true) + '<span class="link" data-k="forgot">Forgot password?</span>'}
+  <p class="note">Staff access is invitation-only. A sign-in alone does not grant workspace permissions.</p>
+</div></div>`;
+      function flow(heading, lanes) {
+        return (s) => {
+          let i = 0;
+          return `<div class="flow"><h3>${heading}</h3>${lanes
+            .map(
+              (lane) =>
+                `<div class="lane">${lane
+                  .map(([icon, title, sub, go, soon], j) => {
+                    i += 1;
+                    return `${j ? '<span class="arrow">→</span>' : ""}<div class="node${i <= s.lit ? " lit" : ""}${i === s.lit ? " now" : ""}${soon ? " soon" : ""}" ${go ? `data-go="${go}" role="button" tabindex="0"` : ""}><em>${icon}</em><strong>${title}</strong><span>${sub}</span></div>`;
+                  })
+                  .join("")}</div>`,
+            )
+            .join("")}</div>`;
+        };
+      }
+      const savedPill = '<span class="pill">Saved</span>';
+      /* ---------- website screens ---------- */
+      const OWNER_MENU = [...MENU];
+      const sel = (s, k, label, value) => field(s, k, label, value, true);
+      const check = (k, label, on) =>
+        `<div data-k="${k}" style="padding:3px 0">${on ? "☑" : "☐"} ${label}</div>`;
+      const amber = (t) => `<span class="pill a">${t}</span>`;
+      const green = (t) => `<span class="pill">${t}</span>`;
+
+      // src/components/fuel-ledger/shell.tsx (an Owner also has "Staff & access")
+      function shell(s, content) {
+        return `<div class="app">
+    <aside class="side">
+      <div class="logo">⛽ ${ESC(s.appName ?? "Demo Fuels")}<b>.</b></div>
+      <div class="switch"><strong>Demo Fuels</strong><div class="sel" data-k="site">${s.site ?? "All Sites"}</div></div>
+      <div class="label">WORKSPACE</div>
+      ${OWNER_MENU.map((m) => `<div class="nav${s.page === m ? " on" : ""}" data-k="nav:${m}">${m}</div>`).join("")}
+      <div class="grow"></div>
+      <div class="label">MANAGEMENT</div>
+      <div class="nav${s.page === "Organization settings" ? " on" : ""}" data-k="nav:Settings">Settings</div>
+      <div class="nav" data-k="nav:Staff">Staff &amp; access</div>
+      <div class="nav">Help &amp; support</div>
+      <div class="who"><strong>Owner 1</strong><small>Owner</small><div data-k="signout">⇥ Sign out</div></div>
+    </aside>
+    <div class="body">
+      <div class="bartop"><span>Workspace ›</span><strong>${s.page}</strong><span class="grow"></span><span>🔍 Search pages…</span><span class="pill">Staff workspace</span></div>
+      <div class="main">${s.message ? `<div class="pill" data-k="message" style="margin-bottom:8px">${s.message}</div>` : ""}${content}</div>
+    </div>
+  </div>${s.dialog ? `<div class="scrim">${s.dialog(s)}</div>` : ""}${s.toast ? `<div class="toast">${s.toast}</div>` : ""}`;
+      }
+
+      // src/components/fuel-ledger/dashboard.tsx, components/organization/setup-progress.tsx
+      function dashboard(s) {
+        const done = s.setup ?? 3;
+        const setup =
+          done < 3
+            ? `<div class="card" data-k="setup" style="margin-bottom:12px"><div class="row" style="margin:0"><div class="grow"><b>Welcome, Demo Fuels</b><br><span>${done} of 3 setup steps complete</span></div>${amber("Initial setup")}</div>
+       <div class="row" style="margin:10px 0 0">${btn("set1", (done > 0 ? "✓ " : "") + "First petrol station")}${btn("set2", (done > 1 ? "✓ " : "") + "Managers &amp; staff")}${btn("set3", "Brand identity")}</div></div>`
+            : "";
+        const one = s.site === "Site 01";
+        return shell(
+          s,
+          head(
+            "Dashboard",
+            "Fuel entries and collections.",
+            btn("newcol", "New collection") + btn("newfuel", "+ New fuel entry", true),
+          ) +
+            setup +
+            notPosted() +
+            `<div class="cards">${card("m1", "Saved fuel amounts", one ? "₹76,117.00" : "₹1,59,444.00", one ? "9 entries · 818.00 litres" : "18 entries · 1704.00 litres")}${card("m2", "Saved collections", one ? "₹30,611.22" : "₹61,380.82", "Unverified")}${card("m3", "Ledger outstanding", "—", "Awaiting accounting rules")}</div>` +
+            (s.compare
+              ? `<div class="row"><b class="grow">Site comparison</b>${amber("Saved records only")}</div>` +
+                table(
+                  ["Site", "Fuel amounts", "Collections", "Entries"],
+                  [
+                    ["Site 01", "₹76,117.00", "₹30,611.22", "11"],
+                    ["Site 02", "₹83,327.00", "₹30,769.60", "11"],
+                  ],
+                  "compare",
+                )
+              : `<div class="cards" style="grid-template-columns:2fr 1fr"><div class="card" data-k="chart"><span>Daily activity · Last 7 active dates</span><br><br><br></div><div class="card" data-k="modes"><span>Collection breakdown</span><br>Cash<br>UPI<br>Bank transfer<br>Cheque</div></div>`),
+        );
+      }
+
+      // src/components/organization/settings-page.tsx
+      const TABS = [
+        "Sites",
+        "People",
+        "Roles",
+        "Branding & appearance",
+        "Notifications",
+        "My preferences",
+      ];
+      function settings(s) {
+        const tab = s.tab ?? "Sites";
+        const tabs = `<div class="tabs">${TABS.map((t) => `<span class="tab${t === tab ? " on" : ""}" data-k="tab:${t}">${t}</span>`).join("")}</div>`;
+        return shell(
+          s,
+          head("Demo Fuels", "Sites, people, and your organization’s identity.") +
+            tabs +
+            PANES[tab](s),
+        );
+      }
+      const siteItem = (k, name, address, active) =>
+        `<div class="card row"><div class="grow"><b>${name}</b><br><span>${address}</span><br>${active ? green("Active") : amber("Inactive")}</div><span data-k="${k}">✎</span></div>`;
+      const PANES = {
+        Sites: (s) =>
+          `<div class="row"><b class="grow">Petrol station sites</b>${btn("addsite", "+ Add site", true)}</div>` +
+          siteItem("edit1", "Site 01", "Sample Road", true) +
+          (s.site2 ? siteItem("edit2", "Site 02", "Example Highway", s.site2 === "on") : ""),
+        People: (s) =>
+          `<div class="row"><b class="grow">People &amp; site access</b>${btn("existing", "+ Add existing account")}${btn("invite", "Invite staff", true)}${btn("assign", "Assign site")}</div>
+    <div class="in" style="margin-bottom:10px">Find a person or site</div>` +
+          table(
+            ["Person", "Organization responsibility", "All-site role", "Status", ""],
+            [
+              ["Owner 1", "Owner", "Individual assignments", "Active", ""],
+              ...(s.invited
+                ? [
+                    [
+                      "Manager 1<br><small>manager1</small>",
+                      "Member",
+                      "Individual assignments",
+                      s.memberStatus ?? (s.assigned ? "Active" : "Active · Password pending"),
+                      '<span data-k="editmember">✎</span>',
+                    ],
+                  ]
+                : []),
+            ],
+          ) +
+          `<p style="margin:14px 0 6px"><b>Site assignments</b></p>` +
+          (s.assigned
+            ? `<div class="card row" data-k="grants"><span class="grow">Site 01 · Manager 1</span><b>Manager · ${s.grantStatus ?? "Active"}</b><span data-k="editgrant">✎</span></div>`
+            : '<div class="card" data-k="grants"><span>No individual site assignments.</span></div>') +
+          `<p style="margin:14px 0 6px"><b data-k="history">Organization history</b></p>`,
+        Roles: (s) =>
+          `<div class="row"><b class="grow">Site roles &amp; permissions</b>${btn("addrole", "+ Add custom role", true)}</div>
+    <div class="card row"><div class="grow"><b>Manager</b><br><span>View dashboard · View customers · Add and edit customers · Add fuel entries · Add collections …</span></div><span>✎</span></div>` +
+          (s.role
+            ? '<div class="card row" data-k="newrole"><div class="grow"><b>Cashier</b><br><span>View dashboard · View customers · View collections · Add collections</span></div><span>✎</span></div>'
+            : ""),
+        "Branding & appearance": (
+          s,
+        ) => `<div style="display:grid;grid-template-columns:1fr 300px;gap:16px"><div>
+      <div class="grid2">${field(s, "oname", "Organization name", "Demo Fuels")}${field(s, "aname", "Application display name", "Demo Fuels")}${field(s, "tagline", "Tagline")}${field(s, "welcome", "Welcome message")}${field(s, "contact", "Contact information")}${field(s, "baddr", "Address")}</div>
+      <div class="row" style="margin-top:10px">${btn("p1", "Original")}${btn("p2", "Forest")}${btn("p3", "Charcoal")}</div>
+      <div class="row">${btn("light", "☀ Light")}${btn("dark", "☾ Dark")}${btn("system", "System")}<span class="mb" data-k="logo">Organization logo</span></div>
+      <div data-k="public">${s.public ? "☑" : "☐"} Publish branding on organization login</div></div>
+    <div>${btn("preview", s.preview ? "Hide preview" : "Preview branding")}
+      ${s.preview ? `<div class="card" data-k="pv" style="margin-top:8px"><b>⛽ ${ESC(s.aname ?? "Demo Fuels")}</b><h4>${ESC(s.welcome ?? "Demo Fuels")}</h4><span>${ESC(s.tagline ?? "")}</span><br>${amber("Unposted workspace")}</div>` : ""}</div></div>
+    <div class="actions">${btn("reset", "Reset to defaults")}${btn("savebrand", "Save branding", true)}</div>`,
+        // src/components/organization/notification-settings.tsx
+        Notifications: (
+          s,
+        ) => `<div style="max-width:520px"><p>Choose what you are told about when a Manager saves an entry in Demo Fuels. This applies to your phone and your browser.</p>
+    ${check("n1", "Send me notifications", true)}${check("n2", "New fuel entries", true)}${check("n3", "New collections", s.collections !== false)}
+    <p style="margin:8px 0 14px">${btn("savenotif", "Save notification settings", true)}</p>
+    <b>This browser</b><p data-k="browser">${s.browser ? "This browser is receiving notifications." : "This browser is not receiving notifications."}</p>
+    <p style="margin:6px 0">${btn("turnon", s.browser ? "Turn off on this browser" : "Turn on for this browser")}</p><p>For your phone, sign in to the Owner app and allow notifications.</p></div>`,
+        "My preferences": () => "",
+      };
+      const siteDialog = (s) =>
+        `<div class="dialog"><h4>Site details</h4><p>Changes apply only to this organization.</p>${field(s, "sname", "Name")}${field(s, "saddr", "Address")}<div class="f" data-k="active">${s.activeOff ? "☐" : "☑"} Active site</div><div class="actions">${btn("cancel", "Cancel")}${btn("savesite", "Save", true)}</div></div>`;
+      const inviteDialog = (s) =>
+        `<div class="dialog"><h4>Invite staff</h4><p>A setup link is emailed to this address. Assign site access afterwards.</p>${field(s, "fname", "Full name")}${field(s, "uname", "Username")}${field(s, "mail", "Email")}<div class="actions">${btn("cancel", "Cancel")}${btn("send", "Send invitation", true)}</div></div>`;
+      const grantDialog = (s) =>
+        `<div class="dialog"><h4>Site assignment</h4><p>Changes apply only to this organization.</p>${sel(s, "member", "Member", "Select member")}${sel(s, "gsite", "Site", "Select site")}${sel(s, "grole", "Site role", "Select role")}${sel(s, "gstatus", "Access status", "Active")}${field(s, "until", "Restriction ends (optional)")}<div class="actions">${btn("cancel", "Cancel")}${btn("savegrant", "Save", true)}</div></div>`;
+      const memberDialog = (s) =>
+        `<div class="dialog"><h4>Organization membership</h4><p>Changes apply only to this organization.</p>${sel(s, "resp", "Responsibility", "Site-assigned member")}${sel(s, "ostatus", "Organization status", "Active")}${sel(s, "allrole", "All-site access", "No all-site grant")}<div class="actions">${btn("cancel", "Cancel")}${btn("savemember", "Save", true)}</div></div>`;
+      // src/lib/organization/labels.ts
+      const roleDialog = (s) =>
+        `<div class="dialog"><h4>Custom site role</h4><p>Changes apply only to this organization.</p>${field(s, "rname", "Name")}<div class="grid2" data-k="perms" style="margin-top:10px">${[
+          "View dashboard",
+          "View customers",
+          "Add and edit customers",
+          "View vehicles",
+          "Add and edit vehicles",
+          "View fuel entries",
+          "Add fuel entries",
+          "View collections",
+          "Add collections",
+          "View customer ledger",
+          "View reports",
+          "Export CSV",
+        ]
+          .map((p, i) => check(`perm${i}`, p, i === 0 || (s.ticked && [1, 7, 8].includes(i))))
+          .join(
+            "",
+          )}</div><div class="actions">${btn("cancel", "Cancel")}${btn("saverole", "Save", true)}</div></div>`;
+      const confirmDialog = (text) => () =>
+        `<div class="dialog" style="width:420px"><h4>Confirm this change</h4><p data-k="warntext">${text}</p><div class="actions">${btn("cancel", "Cancel")}${btn("confirm", "Confirm", true)}</div></div>`;
+
+      /* ---------- Owner mobile app screens (mobile_application/lib) ---------- */
+      const APP_TABS = [
+        ["Home", "🏠"],
+        ["Sites", "⛽"],
+        ["Insights", "📊"],
+        ["Alerts", "🔔"],
+        ["Profile", "👤"],
+      ];
+      const row = (k, label, value, detail = "") =>
+        `<div class="mrow" data-k="${k}"><span class="grow">${label}${detail ? `<small>${detail}</small>` : ""}</span><b>${value}</b></div>`;
+      const sec = (title, body, sub = "") =>
+        `<div class="card msec"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}${body}</div>`;
+      const chips = (s, list, current) =>
+        `<div class="chips">${list.map((c) => `<span class="chip${c === current ? " on" : ""}" data-k="chip:${c}">${c}</span>`).join("")}</div>`;
+      const bars = (k) =>
+        `<div class="mbars" data-k="${k}">${[40, 62, 35, 70, 28, 55, 48].map((h) => `<i style="height:${h}px"></i>`).join("")}</div>`;
+      const metrics =
+        () => `<div class="card msec" data-k="coll"><small>Collections recorded</small><strong>₹61,380.82</strong><small>4 collections · clearance not verified</small></div>
+  <div class="grid2"><div class="card msec" data-k="famt"><small>Fuel amounts</small><b>₹1,59,444.00</b></div><div class="card msec" data-k="fqty"><small>Fuel quantity</small><b>1704.00 L</b></div></div>`;
+      const entryRows =
+        row("e1", "Example Transport", "₹5,430.00", "KA01AB1234 · Diesel · 60 L · Ref SLIP-101") +
+        row("e2", "Example Transport", "₹3,000.00", "UPI · Ref RCPT-01");
+
+      const APP = {
+        Home: (
+          s,
+        ) => `<small>Hello, Owner 1</small><h4>Demo Fuels</h4><small data-k="summary">2 sites · 2 active · updated 10:15</small>
+    ${chips(s, ["Today", "This month", "This year", "All time"], s.period ?? "This month")}${s.scroll ? "" : metrics()}
+    ${sec("Needs your attention", row("att", "Site 02: nothing saved for 9 days", "›") + '<span class="link" data-k="allalerts">All alerts</span>')}
+    ${s.scroll ? sec("How your sites compare", row("s1", "Site 01", "₹30,611.22", "Fuel ₹76,117.00") + row("s2", "Site 02", "₹30,769.60", "Fuel ₹83,327.00"), "ranked by collections") + sec("Recent activity", entryRows, "Latest saved entries") : sec("Daily activity", bars("mchart"))}`,
+        Sites: (
+          s,
+        ) => `<h4>Sites <span style="float:right" data-k="sort">⇅</span></h4><div class="in" data-k="search"><span data-v>${ESC(s.q ?? "Search by name or address")}</span></div>
+    ${chips(s, ["All", "Active", "Inactive"], "All")}
+    ${sec("Site 01 " + green("Active"), row("sitecard", "Collections this month", "₹30,611.22") + row("sf", "Fuel amounts this month", "₹76,117.00") + "<small>Last saved entry 26 Nov 2026</small>")}
+    ${sec("Site 02 " + green("Active"), row("sc2", "Collections this month", "₹30,769.60") + "<small>Last saved entry 17 Nov 2026</small>")}`,
+        Site: (
+          s,
+        ) => `<h4>‹ Site 01</h4><small>Sample Road</small>${chips(s, ["Today", "This month", "This year", "All time"], "This month")}
+    ${
+      s.scroll
+        ? sec("Largest fuel customers", row("top", "Example Transport", "₹5,430.00", "1 entry")) +
+          sec(
+            "Site records",
+            row("r1", "Saved entries", "11 ›") +
+              row("r2", "Customers", "2 ›") +
+              row("r3", "Vehicles", "2 ›") +
+              row("r4", "People with access", "2 ›"),
+          )
+        : metrics() +
+          sec(
+            "Collections by mode",
+            row("mode", "Cash", "₹46,242.50") + row("mode2", "UPI", "₹3,000.00"),
+            "Saved, not confirmed as cleared",
+          )
+    }`,
+        Entries: (
+          s,
+        ) => `<h4>‹ Saved entries</h4><div class="in" data-k="esearch">Search reference, customer, vehicle or notes</div>${chips(s, ["All", "Fuel entries", "Collections"], s.kind ?? "All")}
+    <div class="card msec" data-k="elist">${s.kind === "Fuel entries" ? row("e1", "Example Transport", "₹5,430.00", "KA01AB1234 · Diesel · 60 L · Ref SLIP-101") : entryRows}</div>`,
+        Insights: (
+          s,
+        ) => `<h4>Insights</h4>${chips(s, ["6 months", "12 months"], s.months ?? "6 months")}
+    ${
+      s.scroll
+        ? sec(
+            "Fuel mix",
+            row("mix", "Diesel", "1,420 L") + row("mix2", "Petrol", "284 L"),
+            "By quantity",
+          ) +
+          sec(
+            "Sites",
+            row("rank", "Site 02", "₹83,327.00") + row("rank2", "Site 01", "₹76,117.00"),
+            "Ranked by fuel amounts",
+          ) +
+          sec(
+            "Largest collections by customer",
+            row("big", "Example Transport", "₹3,000.00", "1 record"),
+          )
+        : sec("Monthly trend", bars("trend"), "Fuel ₹1,59,444.00 · collections ₹61,380.82") +
+          sec(
+            "Month by month",
+            row("mon", "Nov 2026", "₹3,000.00", "Fuel ₹15,566.00") +
+              row("mon2", "Oct 2026", "₹0.00", "Fuel ₹3,801.00"),
+          )
+    }`,
+        Alerts:
+          () => `<h4>Alerts</h4><small data-k="alertnote">Worked out from saved records. These are not push notifications.</small>
+    ${sec("Needs attention", row("a1", "Site 02: nothing saved for 9 days", "›", "Last saved entry is dated 17 Nov 2026.") + row("a2", "Manager 2 has not finished setup", "", "The account still needs a password before it can be used."))}
+    ${sec("For your information", row("a3", "Set up your brand identity", "", "Finish this step in the web workspace."))}`,
+        Profile: (
+          s,
+        ) => `<h4>Profile</h4>${sec("Owner 1", "<small>owner@example.com<br>Organization Owner</small>")}
+    ${sec("Appearance", chips(s, ["System", "Light", "Dark"], s.mode ?? "System"))}
+    <div class="card msec">${row("people", "People", "›", "Staff and their site access")}${row("web", "Open web workspace", "↗", "Manage sites, staff and records")}</div>
+    <p style="text-align:center;margin:8px 0">${btn("msignout", "⇥ Sign out")}</p><small data-k="readonly">This app only reads records. Nothing you see here is changed by viewing it.</small>`,
+        People: () =>
+          `<h4>‹ People</h4><div class="in">Search by name</div><div class="card msec" data-k="plist">${row("pp1", "Owner 1", "", "Owner")}${row("pp2", "Manager 1", "", "Manager")}${row("pp3", "Manager 2", "", "Manager · Setup not finished")}</div>`,
+        Login: (
+          s,
+        ) => `<div style="text-align:center;padding-top:60px"><div style="font-size:46px">⛽</div><h4>FuelLedger Owner</h4><small>Sign in with your owner account.</small></div>
+    ${field(s, "aemail", "Email")}${field(s, "apass", "Password")}<p style="text-align:center;margin-top:16px">${btn("asignin", "Sign in", true)}</p><p style="text-align:center" class="link-row"><span class="link" data-k="aforgot">Forgot password?</span></p><p style="text-align:center"><small>Access is by invitation only.</small></p>`,
+        Lock: () =>
+          `<div style="padding-top:80px;text-align:center"><small>Phone lock screen</small></div><div class="card msec" data-k="push" style="margin-top:24px"><small>FuelLedger Owner · now</small><b>Fuel entry · Site 01</b><span>₹5,430.00 · Example Transport · by Manager 1</span></div>`,
+      };
+      function mobile(s) {
+        const screenName = s.m ?? "Home";
+        const bare = screenName === "Login" || screenName === "Lock";
+        const current =
+          { Site: "Sites", Entries: "Sites", People: "Profile" }[screenName] ?? screenName;
+        return `<div class="phonewrap"><div class="phone">
+      <div class="mbody${bare ? " bare" : ""}">${APP[screenName](s)}</div>
+      ${bare ? "" : `<div class="tabbar">${APP_TABS.map(([t, i]) => `<span class="${t === current ? "on" : ""}" data-k="t:${t}"><em>${i}</em>${t}</span>`).join("")}</div>`}
+      ${s.confirm ? `<div class="scrim"><div class="card" style="width:220px"><b>Sign out?</b><div class="actions">${btn("mcancel", "Cancel")}${btn("myes", "Sign out", true)}</div></div></div>` : ""}
+    </div><div class="side-note"><b>FuelLedger Owner app</b><br><br>Android and iPhone. It only shows records; changes are made on the website.<br><br>Not in the app stores yet.</div></div>`;
+      }
+
+      /* ---------- flow diagrams ---------- */
+      const bigPicture = flow("How an Owner runs the stations", [
+        [
+          [
+            "✉️",
+            "1. Your account",
+            "FuelLedger sets up your organization and emails you",
+            "signin",
+          ],
+          ["⛽", "2. Add stations", "One site per petrol station", "sites"],
+          ["👥", "3. Invite staff", "Setup link by email", "invite"],
+          ["🛡️", "4. Give a site", "Role decides what they can do", "assign"],
+        ],
+        [
+          ["🎨", "5. Branding", "Name, colours, logo", "brand"],
+          ["📝", "6. Managers work", "Customers, vehicles, fuel, collections", "work"],
+          ["📊", "7. Watch on web", "All sites together", "watch"],
+          ["📱", "8. Watch on phone", "Owner app, view only", "app-home"],
+        ],
+        [
+          ["🔔", "9. Notifications", "Waiting for a database update", "notify", true],
+          ["🔒", "10. Control access", "Suspend or revoke", "access"],
+        ],
+      ]);
+      const together = flow("Manager and Owner together", [
+        [
+          ["📝", "Manager saves", "Fuel entry or collection"],
+          ["🗄️", "One saved record", "Cannot be changed or removed"],
+          ["💻", "Owner website", "Dashboard, lists, ledger"],
+        ],
+        [
+          ["📱", "Owner app", "Home, Sites, Insights"],
+          ["🔔", "Notification", "Waiting for a database update", null, true],
+          ["📕", "Your books", "Still the accounting record"],
+        ],
+      ]);
+
+      /* ---------- chapters ----------
+   Each step: [heading, explanation, options]
+   options: at = element the cursor goes to, click = ripple, type = {key: text}, set = state after the step */
+      const people = {
+        page: "Organization settings",
+        tab: "People",
+        invited: true,
+        assigned: true,
+      };
+      const CHAPTERS = [
+        {
+          id: "overview",
+          group: "Start here",
+          name: "The big picture",
+          view: bigPicture,
+          start: { lit: 0 },
+          steps: [
+            [
+              "Your account arrives",
+              "FuelLedger creates your organization and emails you a setup link. Select any box to jump to that chapter.",
+              { set: { lit: 1 } },
+            ],
+            ["Add your stations", "Each petrol station is a site.", { set: { lit: 2 } }],
+            ["Invite staff", "They receive a setup link.", { set: { lit: 3 } }],
+            [
+              "Give each person a site",
+              "An invitation alone gives no access.",
+              { set: { lit: 4 } },
+            ],
+            ["Make it yours", "Your name, colours and logo.", { set: { lit: 5 } }],
+            [
+              "Managers do the daily work",
+              "Their steps are in the Manager walkthrough (manager.html).",
+              { set: { lit: 6 } },
+            ],
+            ["Watch on the website", "All stations together.", { set: { lit: 7 } }],
+            ["Watch on your phone", "The Owner app shows saved records.", { set: { lit: 8 } }],
+            [
+              "Notifications",
+              "Built, but not sent until a database update is applied.",
+              { set: { lit: 9 } },
+            ],
+            ["Stay in control", "Pause or remove anyone's access.", { set: { lit: 10 } }],
+          ],
+        },
+        {
+          id: "signin",
+          group: "Website",
+          name: "Sign in and set up",
+          view: signin,
+          start: {},
+          steps: [
+            [
+              "Sign in",
+              "First time? Open the setup link in your email and set a password of at least 12 characters, with a capital letter, a small letter and a number.",
+              {},
+            ],
+            [
+              "Type your email",
+              "The invited address.",
+              { at: "email", type: { email: "owner@example.com" } },
+            ],
+            [
+              "Type your password",
+              "Never share it.",
+              { at: "pass", type: { pass: "••••••••••••" } },
+            ],
+            [
+              "Select Sign in",
+              "You land on the Dashboard.",
+              {
+                at: "signinbtn",
+                click: true,
+                view: dashboard,
+                set: { page: "Dashboard", setup: 0 },
+              },
+            ],
+            [
+              "Initial setup panel",
+              "A new organization has three steps. The panel disappears when all are done.",
+              { at: "setup" },
+            ],
+          ],
+        },
+        {
+          id: "sites",
+          group: "Website",
+          name: "Add a station",
+          view: dashboard,
+          start: { page: "Dashboard", setup: 0 },
+          steps: [
+            [
+              "Open Settings",
+              "Or select First petrol station in the setup panel.",
+              {
+                at: "nav:Settings",
+                click: true,
+                view: settings,
+                set: { page: "Organization settings", tab: "Sites" },
+              },
+            ],
+            [
+              "Select Add site",
+              "A form opens.",
+              { at: "addsite", click: true, set: { dialog: siteDialog } },
+            ],
+            ["Name", "The station's name.", { at: "sname", type: { sname: "Site 02" } }],
+            [
+              "Address",
+              "Shown in your site list and the app.",
+              { at: "saddr", type: { saddr: "Example Highway" } },
+            ],
+            [
+              "Select Save",
+              "The station is ready.",
+              {
+                at: "savesite",
+                click: true,
+                set: { dialog: null, site2: "on", message: "Site saved." },
+              },
+            ],
+            [
+              "Closing a station later",
+              "Select the pencil.",
+              { at: "edit2", click: true, set: { message: null, dialog: siteDialog } },
+            ],
+            [
+              "Untick Active site",
+              "Staff can then no longer work there, and its records are hidden in the app.",
+              { at: "active", click: true, set: { activeOff: true } },
+            ],
+            [
+              "You are asked to confirm",
+              "Cancel if you did not mean it.",
+              {
+                at: "savesite",
+                click: true,
+                set: {
+                  dialog: confirmDialog(
+                    "This site will be made inactive. Staff will no longer be able to work in it.",
+                  ),
+                },
+              },
+            ],
+            [
+              "Cancel keeps it open",
+              "Here we keep the station active.",
+              { at: "cancel", click: true, set: { dialog: null, activeOff: false } },
+            ],
+          ],
+        },
+        {
+          id: "invite",
+          group: "Website",
+          name: "Invite staff",
+          view: settings,
+          start: { page: "Organization settings", tab: "Sites", site2: "on" },
+          steps: [
+            [
+              "Open People",
+              "Step 1 of 2 for a new person. “Staff & access” in the menu leads here too.",
+              { at: "tab:People", click: true, set: { tab: "People" } },
+            ],
+            [
+              "Select Invite staff",
+              "For someone who already has a FuelLedger username, use Add existing account.",
+              { at: "invite", click: true, set: { dialog: inviteDialog } },
+            ],
+            ["Full name", "As you know them.", { at: "fname", type: { fname: "Manager 1" } }],
+            [
+              "Username",
+              "3 to 32 lowercase letters, numbers or underscores.",
+              { at: "uname", type: { uname: "manager1" } },
+            ],
+            [
+              "Email",
+              "The setup link goes here.",
+              { at: "mail", type: { mail: "manager@example.com" } },
+            ],
+            [
+              "Select Send invitation",
+              "They set their own password. You never send one.",
+              {
+                at: "send",
+                click: true,
+                set: {
+                  dialog: null,
+                  invited: true,
+                  message:
+                    "Staff added. If no setup email arrives, they can use Forgot password. Assign site access next.",
+                },
+              },
+            ],
+            [
+              "Not finished yet",
+              "“Password pending” means they have not set a password. They also need a site: next chapter.",
+              { at: "grants" },
+            ],
+          ],
+        },
+        {
+          id: "assign",
+          group: "Website",
+          name: "Give a site",
+          view: settings,
+          start: { page: "Organization settings", tab: "People", invited: true, site2: "on" },
+          steps: [
+            [
+              "Select Assign site",
+              "Step 2 of 2.",
+              { at: "assign", click: true, set: { dialog: grantDialog } },
+            ],
+            [
+              "Member",
+              "Choose the person.",
+              { at: "member", click: true, set: { member: "Manager 1" } },
+            ],
+            ["Site", "Which station.", { at: "gsite", click: true, set: { gsite: "Site 01" } }],
+            [
+              "Site role",
+              "Decides what they may do.",
+              { at: "grole", click: true, set: { grole: "Manager" } },
+            ],
+            ["Access status", "Leave it Active.", { at: "gstatus" }],
+            [
+              "Select Save",
+              "Now they can work at that station.",
+              {
+                at: "savegrant",
+                click: true,
+                set: { dialog: null, assigned: true, message: "Site access saved." },
+              },
+            ],
+            [
+              "Check the list",
+              "One line for each person and station. For every station at once, use All-site access on the person.",
+              { at: "grants" },
+            ],
+          ],
+        },
+        {
+          id: "roles",
+          group: "Website",
+          name: "Roles",
+          view: settings,
+          start: { ...people },
+          steps: [
+            [
+              "Open Roles",
+              "A role is a set of permissions.",
+              { at: "tab:Roles", click: true, set: { tab: "Roles" } },
+            ],
+            [
+              "Select Add custom role",
+              "For example a cashier who only takes payments.",
+              { at: "addrole", click: true, set: { dialog: roleDialog } },
+            ],
+            ["Name it", "Up to 60 characters.", { at: "rname", type: { rname: "Cashier" } }],
+            [
+              "Tick what they may do",
+              "A role that adds collections also needs View customers. Adding fuel needs View customers and View vehicles.",
+              { at: "perms", click: true, set: { ticked: true } },
+            ],
+            [
+              "Select Save",
+              "Editing a role later changes access for everyone who has it.",
+              {
+                at: "saverole",
+                click: true,
+                set: { dialog: null, role: true, message: "Role saved." },
+              },
+            ],
+          ],
+        },
+        {
+          id: "brand",
+          group: "Website",
+          name: "Branding",
+          view: settings,
+          start: { ...people },
+          steps: [
+            [
+              "Open Branding & appearance",
+              "Your identity inside FuelLedger.",
+              {
+                at: "tab:Branding & appearance",
+                click: true,
+                set: { tab: "Branding & appearance" },
+              },
+            ],
+            [
+              "Tagline",
+              "A short line under your name.",
+              { at: "tagline", type: { tagline: "Fuel on credit, clearly" } },
+            ],
+            [
+              "Welcome message",
+              "Shown to your staff.",
+              { at: "welcome", type: { welcome: "Welcome to Demo Fuels" } },
+            ],
+            [
+              "Colours and theme",
+              "Pick a preset or your own colours. A logo is PNG, JPEG or WebP, under 2 MB.",
+              { at: "p2" },
+            ],
+            [
+              "Preview first",
+              "Check desktop or mobile before saving.",
+              { at: "preview", click: true, set: { preview: true } },
+            ],
+            [
+              "Your own sign-in page",
+              "Optional. Only identity, theme and logo become public.",
+              { at: "public", click: true, set: { public: true } },
+            ],
+            [
+              "Select Save branding",
+              "Leaving Settings without saving throws the changes away.",
+              {
+                at: "savebrand",
+                click: true,
+                set: { message: "Branding saved across your organization." },
+              },
+            ],
+          ],
+        },
+        {
+          id: "work",
+          group: "Website",
+          name: "Daily work",
+          view: together,
+          start: { lit: 0 },
+          steps: [
+            [
+              "Managers enter the records",
+              "You can enter them too. The steps are the same as in the Manager walkthrough (manager.html).",
+              { set: { lit: 1 } },
+            ],
+            [
+              "One record for everyone",
+              "Once saved it cannot be changed or removed, by anyone.",
+              { set: { lit: 2 } },
+            ],
+            [
+              "You see it on the website",
+              "Dashboard, entry lists and customer ledger.",
+              { set: { lit: 3 } },
+            ],
+            ["And in the app", "The same records, view only.", { set: { lit: 4 } }],
+            ["Notification", "Waiting for a database update.", { set: { lit: 5 } }],
+            [
+              "Keep your books",
+              "FuelLedger does not post accounts or calculate what customers owe.",
+              { set: { lit: 6 } },
+            ],
+          ],
+        },
+        {
+          id: "watch",
+          group: "Website",
+          name: "Watch all stations",
+          view: dashboard,
+          start: { page: "Dashboard" },
+          steps: [
+            ["All Sites", "Your default view: every station together.", { at: "site" }],
+            ["Fuel and collections", "Totals of saved records.", { at: "m1" }],
+            ["Outstanding is blank", "Balances wait for the accounting rules.", { at: "m3" }],
+            ["Compare stations", "Scroll down to Site comparison.", { set: { compare: true } }],
+            [
+              "Which station needs a look?",
+              "Fuel amounts, collections and entry counts side by side.",
+              { at: "compare" },
+            ],
+            [
+              "Focus on one",
+              "Choose a site in the menu.",
+              { at: "site", click: true, set: { site: "Site 01", compare: false } },
+            ],
+          ],
+        },
+        {
+          id: "access",
+          group: "Website",
+          name: "Change or remove access",
+          view: settings,
+          start: { ...people },
+          steps: [
+            [
+              "One station only",
+              "Select the pencil under Site assignments.",
+              {
+                at: "editgrant",
+                click: true,
+                set: {
+                  dialog: grantDialog,
+                  member: "Manager 1",
+                  gsite: "Site 01",
+                  grole: "Manager",
+                },
+              },
+            ],
+            [
+              "Suspend or revoke",
+              "To pause for a while, choose Suspended and set Restriction ends.",
+              { at: "gstatus", click: true, set: { gstatus: "Suspended" } },
+            ],
+            [
+              "Save",
+              "You are asked to confirm when someone loses access.",
+              {
+                at: "savegrant",
+                click: true,
+                set: { dialog: confirmDialog("This person will lose access to this site.") },
+              },
+            ],
+            [
+              "Confirm",
+              "Their access to this station stops.",
+              {
+                at: "confirm",
+                click: true,
+                set: { dialog: null, grantStatus: "Suspended", message: "Site access saved." },
+              },
+            ],
+            [
+              "Someone leaves",
+              "Select the pencil beside their name.",
+              { at: "editmember", click: true, set: { message: null, dialog: memberDialog } },
+            ],
+            [
+              "Revoke the organization",
+              "This stops all access.",
+              { at: "ostatus", click: true, set: { ostatus: "Revoked" } },
+            ],
+            [
+              "Save",
+              "A warning appears.",
+              {
+                at: "savemember",
+                click: true,
+                set: { dialog: confirmDialog("This person will lose access to the organization.") },
+              },
+            ],
+            [
+              "Confirm",
+              "You cannot change your own access.",
+              {
+                at: "confirm",
+                click: true,
+                set: {
+                  dialog: null,
+                  memberStatus: "Revoked",
+                  message: "Organization access saved.",
+                },
+              },
+            ],
+            ["History", "Recent changes are listed at the bottom.", { at: "history" }],
+          ],
+        },
+        {
+          id: "notify",
+          group: "Website",
+          name: "Notification choices",
+          view: settings,
+          start: { ...people },
+          steps: [
+            [
+              "Open Notifications",
+              "Note: choices can be set, but sending waits for a database update.",
+              { at: "tab:Notifications", click: true, set: { tab: "Notifications" } },
+            ],
+            [
+              "What to be told about",
+              "New fuel entries, new collections, or both.",
+              { at: "n3", click: true, set: { collections: false } },
+            ],
+            [
+              "Save",
+              "Applies to your phone and browser, for this organization.",
+              { at: "savenotif", click: true, set: { message: "Notification settings saved." } },
+            ],
+            [
+              "This browser",
+              "Turn it on and allow notifications. Signing out stops them.",
+              { at: "turnon", click: true, set: { browser: true, message: null } },
+            ],
+          ],
+        },
+        {
+          id: "app-signin",
+          group: "Mobile app",
+          name: "App: sign in",
+          view: mobile,
+          start: { m: "Login" },
+          steps: [
+            [
+              "Open FuelLedger Owner",
+              "Only active Owners can get in. A Manager is told Owner access is required.",
+              {},
+            ],
+            [
+              "Email",
+              "Your owner account.",
+              { at: "aemail", type: { aemail: "owner@example.com" } },
+            ],
+            [
+              "Password",
+              "Set it on the website first.",
+              { at: "apass", type: { apass: "••••••••••••" } },
+            ],
+            ["Sign in", "Home opens.", { at: "asignin", click: true, set: { m: "Home" } }],
+            ["Five buttons", "Home, Sites, Insights, Alerts and Profile.", { at: "t:Home" }],
+          ],
+        },
+        {
+          id: "app-home",
+          group: "Mobile app",
+          name: "App: Home",
+          view: mobile,
+          start: { m: "Home" },
+          steps: [
+            [
+              "Your stations at a glance",
+              "Pull the screen down to load the latest records.",
+              { at: "summary" },
+            ],
+            [
+              "Choose a period",
+              "Today, This month, This year or All time.",
+              { at: "chip:This year", click: true, set: { period: "This year" } },
+            ],
+            ["Collections first", "Money recorded. Clearance is not verified.", { at: "coll" }],
+            [
+              "Fuel amounts and litres",
+              "Never subtracted from collections: no balance is shown.",
+              { at: "famt" },
+            ],
+            [
+              "Needs your attention",
+              "The most urgent items. All alerts opens the full list.",
+              { at: "att" },
+            ],
+            [
+              "Scroll down",
+              "Compare your sites and see the latest entries.",
+              { set: { scroll: true } },
+            ],
+            [
+              "Tap a site",
+              "Opens that station.",
+              { at: "s1", click: true, set: { m: "Site", scroll: false } },
+            ],
+          ],
+        },
+        {
+          id: "app-sites",
+          group: "Mobile app",
+          name: "App: Sites",
+          view: mobile,
+          start: { m: "Home" },
+          steps: [
+            ["Open Sites", "Bottom bar.", { at: "t:Sites", click: true, set: { m: "Sites" } }],
+            ["Find a station", "Search, filter Active or Inactive, or sort.", { at: "search" }],
+            ["Open it", "Tap the station.", { at: "sitecard", click: true, set: { m: "Site" } }],
+            ["Station totals", "Chart and collections by mode.", { at: "coll" }],
+            [
+              "Scroll to the records",
+              "Largest customers, then Site records.",
+              { set: { scroll: true } },
+            ],
+            [
+              "Saved entries",
+              "Also Customers, Vehicles and People with access.",
+              { at: "r1", click: true, set: { m: "Entries" } },
+            ],
+            [
+              "Fuel entries or collections",
+              "Search by reference, customer, vehicle or notes. Nothing can be edited.",
+              { at: "chip:Fuel entries", click: true, set: { kind: "Fuel entries" } },
+            ],
+          ],
+        },
+        {
+          id: "app-insights",
+          group: "Mobile app",
+          name: "App: Insights",
+          view: mobile,
+          start: { m: "Home" },
+          steps: [
+            [
+              "Open Insights",
+              "The longer view.",
+              { at: "t:Insights", click: true, set: { m: "Insights" } },
+            ],
+            [
+              "6 or 12 months",
+              "Choose the range.",
+              { at: "chip:12 months", click: true, set: { months: "12 months" } },
+            ],
+            ["Monthly trend", "Then the months one by one.", { at: "trend" }],
+            [
+              "Scroll down",
+              "Collections by mode, fuel mix, site and customer rankings.",
+              { set: { scroll: true } },
+            ],
+            ["Rankings", "These are entered amounts, not what is owed.", { at: "rank" }],
+          ],
+        },
+        {
+          id: "app-alerts",
+          group: "Mobile app",
+          name: "App: Alerts",
+          view: mobile,
+          start: { m: "Home" },
+          steps: [
+            [
+              "Open Alerts",
+              "A number on the bell shows urgent items.",
+              { at: "t:Alerts", click: true, set: { m: "Alerts" } },
+            ],
+            ["Quiet station", "An active site with nothing saved for 7 days.", { at: "a1" }],
+            ["Unfinished staff setup", "Someone has not set a password.", { at: "a2" }],
+            ["For your information", "Inactive sites and setup steps left.", { at: "a3" }],
+          ],
+        },
+        {
+          id: "app-profile",
+          group: "Mobile app",
+          name: "App: Profile",
+          view: mobile,
+          start: { m: "Home" },
+          steps: [
+            [
+              "Open Profile",
+              "With more than one organization, you switch here.",
+              { at: "t:Profile", click: true, set: { m: "Profile" } },
+            ],
+            [
+              "Light or dark",
+              "Or follow the phone.",
+              { at: "chip:Dark", click: true, set: { mode: "Dark" } },
+            ],
+            [
+              "People",
+              "Your staff and their access.",
+              { at: "people", click: true, set: { m: "People" } },
+            ],
+            [
+              "Back to Profile",
+              "Open web workspace takes you to the website to make changes.",
+              { at: "t:Profile", click: true, set: { m: "Profile" } },
+            ],
+            [
+              "Sign out",
+              "The app asks you to confirm.",
+              { at: "msignout", click: true, set: { confirm: true } },
+            ],
+            [
+              "Done",
+              "This signs out this phone only.",
+              { at: "myes", click: true, set: { confirm: false, m: "Login" } },
+            ],
+          ],
+        },
+        {
+          id: "app-push",
+          group: "Mobile app",
+          name: "App: notification",
+          view: mobile,
+          start: { m: "Lock" },
+          steps: [
+            [
+              "Not live yet",
+              "This is how it will look once the database update is applied. Android only; iPhone is not set up.",
+              {},
+            ],
+            [
+              "A Manager saves an entry",
+              "Your phone shows the site, amount, customer and who saved it.",
+              { at: "push" },
+            ],
+            [
+              "Tap it",
+              "That station's saved entries open.",
+              { at: "push", click: true, set: { m: "Entries" } },
+            ],
+          ],
+        },
+      ];
+
+      /* ---------- player ---------- */
+      const $ = (id) => document.getElementById(id);
+      const screen = $("screen"),
+        viewport = $("viewport");
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const seen = new Set();
+      let chapter = 0,
+        step = 0,
+        playing = false,
+        run = 0,
+        scale = 1;
+
+      // State after `upto` steps of a chapter. A step that changes view from a flow or sign-in keeps earlier state.
+      function stateAt(c, upto) {
+        let view = c.view,
+          state = { ...c.start };
+        for (let i = 0; i < upto; i++) {
+          const o = c.steps[i][2];
+          Object.assign(state, o.type, o.set);
+          if (o.view) view = o.view;
+          // returning to the sign-in page starts it clean
+          if (o.view === signin) state = { ...o.set };
+        }
+        return { view, state };
+      }
+      function draw({ view, state }) {
+        // A dialog or menu that is already open must not slide in again on every step.
+        const open = [".dialog", ".drawer", ".toast"].filter((s) => screen.querySelector(s));
+        screen.innerHTML = view(state);
+        open.forEach((s) => screen.querySelector(s)?.style.setProperty("animation", "none"));
+      }
+      // On a narrow window the screen stays readable: it is enlarged and follows the action.
+      function fit() {
+        const width = viewport.clientWidth;
+        scale = Math.max(width / 1100, 0.6);
+        viewport.style.height = `${680 * Math.min(scale, Math.max(width / 1100, 0.6))}px`;
+        follow();
+      }
+      function follow(element = screen.querySelector(".focus, .node.now, .dialog, .phone")) {
+        const width = viewport.clientWidth;
+        let x = 0;
+        if (element && 1100 * scale > width + 1) {
+          const box = element.getBoundingClientRect(),
+            base = screen.getBoundingClientRect();
+          const middle =
+            ((box.left + box.width / 2 - base.left) / (base.width || 1)) * 1100 * scale;
+          x = Math.min(Math.max(middle - width / 2, 0), 1100 * scale - width);
+        }
+        screen.style.transform = `translateX(${-x}px) scale(${scale})`;
+      }
+      const cursor = document.createElement("div");
+      cursor.className = "cursor";
+      cursor.innerHTML =
+        '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 2l16 9-7 2-3 7z" fill="#111" stroke="#fff" stroke-width="1.5"/></svg>';
+      let pos = { x: 560, y: 340 };
+      function placeCursor() {
+        cursor.style.transform = `translate(${pos.x}px,${pos.y}px)`;
+      }
+      const speed = () => Number($("speed").value);
+      const wait = (ms, id) =>
+        new Promise((resolve, reject) =>
+          setTimeout(
+            () => (id === run ? resolve() : reject(new Error("stopped"))),
+            reduced ? 0 : ms * speed(),
+          ),
+        );
+      const find = (key) => screen.querySelector(`[data-k="${key}"]`);
+
+      function labels() {
+        const c = CHAPTERS[chapter];
+        const [title, tip] = c.steps[step];
+        $("count").textContent =
+          `Chapter ${chapter + 1} of ${CHAPTERS.length} · ${c.name} · Step ${step + 1} of ${c.steps.length}`;
+        $("title").textContent = title;
+        $("tip").textContent = tip;
+        $("progress").style.width = `${((step + 1) / c.steps.length) * 100}%`;
+        $("back").disabled = chapter === 0 && step === 0;
+        $("next").disabled = chapter === CHAPTERS.length - 1 && step === c.steps.length - 1;
+        $("play").textContent = playing ? "❚❚ Pause" : "▶ Play";
+        seen.add(chapter);
+        [...$("nav").querySelectorAll("button")].forEach((b, i) => {
+          b.classList.toggle("on", i === chapter);
+          b.classList.toggle("seen", seen.has(i));
+        });
+        // keep the current chapter visible in the sideways list on a phone
+        const current = $("nav").querySelectorAll("button")[chapter];
+        $("nav").scrollLeft = current.offsetLeft - $("nav").offsetLeft - 8;
+        history.replaceState(null, "", `#${c.id}/${step + 1}`);
+      }
+
+      // Animate one step: move, type or click, then show the result.
+      async function animate() {
+        const id = ++run;
+        const c = CHAPTERS[chapter];
+        const o = c.steps[step][2];
+        labels();
+        draw(stateAt(c, step));
+        const target = o.at && find(o.at);
+        screen.append(cursor);
+        cursor.style.opacity = target ? 1 : 0;
+        placeCursor();
+        follow(target || undefined);
+        try {
+          if (target) {
+            await wait(150, id);
+            const box = target.getBoundingClientRect(),
+              base = screen.getBoundingClientRect();
+            pos = {
+              x: (box.left - base.left + Math.min(box.width * 0.6, box.width - 6)) / scale,
+              y: (box.top - base.top + box.height * 0.55) / scale,
+            };
+            placeCursor();
+            await wait(750, id);
+            target.classList.add("focus");
+            if (o.click || o.type) {
+              const ripple = document.createElement("div");
+              ripple.className = "ripple";
+              ripple.style.left = `${pos.x}px`;
+              ripple.style.top = `${pos.y}px`;
+              screen.append(ripple);
+              await wait(450, id);
+            }
+            if (o.type) {
+              const [text] = Object.values(o.type);
+              const slot = target.querySelector("[data-v]");
+              for (let i = 1; i <= text.length; i++) {
+                slot.textContent = text.slice(0, i);
+                await wait(60, id);
+              }
+            }
+          } else {
+            await wait(500, id);
+          }
+          draw(stateAt(c, step + 1));
+          screen.append(cursor);
+          // keep the highlight when the step only points at something
+          if (o.at && !o.click) find(o.at)?.classList.add("focus");
+          follow();
+          if (!playing) return;
+          await wait(2600, id);
+          const lastStep = step === c.steps.length - 1;
+          if (!lastStep) step++;
+          else if ($("auto").checked && chapter < CHAPTERS.length - 1) {
+            chapter++;
+            step = 0;
+          } else {
+            playing = false;
+            labels();
+            return;
+          }
+          animate();
+        } catch (error) {
+          if (error.message !== "stopped") throw error;
+        }
+      }
+
+      function go(c, s = 0) {
+        chapter = c;
+        step = s;
+        animate();
+      }
+      function forward() {
+        playing = false;
+        if (step < CHAPTERS[chapter].steps.length - 1) go(chapter, step + 1);
+        else if (chapter < CHAPTERS.length - 1) go(chapter + 1);
+      }
+      function backward() {
+        playing = false;
+        if (step > 0) go(chapter, step - 1);
+        else if (chapter > 0) go(chapter - 1, CHAPTERS[chapter - 1].steps.length - 1);
+      }
+      function toggle() {
+        playing = !playing;
+        const last = chapter === CHAPTERS.length - 1 && step === CHAPTERS[chapter].steps.length - 1;
+        if (playing && last) go(0);
+        else animate();
+      }
+
+      CHAPTERS.forEach((c, i) => {
+        if (c.group !== CHAPTERS[i - 1]?.group)
+          $("nav").insertAdjacentHTML("beforeend", `<div class="label">${c.group}</div>`);
+        const b = document.createElement("button");
+        b.innerHTML = `<i>${i + 1}</i>${c.name}`;
+        b.onclick = () => {
+          playing = true;
+          go(i);
+        };
+        $("nav").append(b);
+      });
+      $("play").onclick = toggle;
+      $("next").onclick = forward;
+      $("back").onclick = backward;
+      $("replay").onclick = () => {
+        playing = true;
+        go(chapter);
+      };
+      function jump(event) {
+        const node = event.target.closest("[data-go]");
+        if (!node) return;
+        playing = true;
+        go(CHAPTERS.findIndex((c) => c.id === node.dataset.go));
+      }
+      screen.addEventListener("click", jump);
+      screen.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") jump(e);
+      });
+      addEventListener("keydown", (e) => {
+        if (e.target.closest("input,select")) return;
+        if (e.key === "ArrowRight") forward();
+        else if (e.key === "ArrowLeft") backward();
+        else if (e.key === " " && !e.target.closest("button")) {
+          e.preventDefault();
+          toggle();
+        }
+      });
+      const root = document.documentElement;
+      root.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      $("theme").onclick = () => {
+        root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+      };
+      new ResizeObserver(fit).observe(viewport);
+      fit();
+
+      const [hashId, hashStep] = location.hash.slice(1).split("/");
+      const start = Math.max(
+        0,
+        CHAPTERS.findIndex((c) => c.id === hashId),
+      );
+      playing = !reduced;
+      go(
+        start,
+        Math.min(Math.max(0, (Number(hashStep) || 1) - 1), CHAPTERS[start].steps.length - 1),
+      );
+    </script>
+  </body>
+</html>
